@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B站监控博主管理</title>
+<style>
+  :root{--bg:#0d1117;--panel:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;--up:#f85149;--down:#3fb950;--gold:#d29922;--blue:#58a6ff}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;padding:20px;max-width:820px;margin:0 auto}
+  h1{font-size:20px;color:#fff;margin-bottom:6px}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:16px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px}
+  .stats{display:flex;gap:10px;margin-bottom:14px}
+  .stat{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+  .stat .v{font-size:20px;font-weight:600;color:#fff}.stat .l{font-size:11px;color:var(--muted);margin-top:2px}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+  .row:last-child{border-bottom:none}
+  .row .name{font-size:15px;font-weight:600;color:var(--gold)}
+  .row .uid{font-size:11px;color:var(--muted);margin-top:2px}
+  .row .meta{font-size:11px;color:var(--muted);margin-top:2px}
+  .row .right{text-align:right}
+  .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;margin-left:6px}
+  .badge-on{background:#1a3a2a;color:var(--down)}.badge-off{background:#3a1a1a;color:var(--up)}
+  button{background:var(--panel);color:var(--text);border:1px solid var(--border);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+  button:hover{border-color:var(--blue)}
+  button.danger{color:var(--up);border-color:#5a2a2a}
+  button.primary{background:#1f6f3f;color:#fff;border-color:#2ea043}
+  input[type=text]{background:#0d1117;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;width:200px}
+  .add-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .msg{font-size:12px;margin-top:8px;min-height:16px}
+  .msg.ok{color:var(--down)}.msg.err{color:var(--up)}
+  .link{color:var(--blue);text-decoration:none;font-size:12px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div><h1>🎯 B站监控博主管理</h1><div class="sub" id="subInfo">加载中…</div></div>
+  <div><a class="link" href="http://localhost:8082" target="_blank">策略看板</a></div>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div class="card">
+  <div class="add-form">
+    <input type="text" id="newUid" placeholder="博主 UID（如 3706959876327428）">
+    <button class="primary" onclick="addUp()">➕ 添加博主</button>
+    <button onclick="refreshNames()">🔄 刷新昵称</button>
+    <button onclick="load()">↻ 刷新列表</button>
+  </div>
+  <div class="msg" id="msg"></div>
+</div>
+
+<div class="card">
+  <div style="margin-bottom:8px;color:var(--muted);font-size:13px">监控中的博主</div>
+  <div id="upList"></div>
+</div>
+
+<div class="sub" style="margin-top:14px">
+  提示：UID 在博主主页 URL 里（space.bilibili.com/<b>UID</b>）。增删后监控下轮（≤2分钟）自动生效，无需重启。
+</div>
+
+<script>
+function setMsg(t, ok){ const e=document.getElementById('msg'); e.textContent=t; e.className='msg '+(ok?'ok':'err'); }
+
+async function load(){
+  const [upsR, stR] = await Promise.all([
+    fetch('/api/ups').then(r=>r.json()),
+    fetch('/api/state').then(r=>r.json()).catch(()=>({}))
+  ]);
+  const ups = upsR.ups||[];
+  const st = stR;
+  // 顶部状态
+  document.getElementById('subInfo').textContent =
+    `监控状态: ${st.running?'🟢 运行中':'🔴 未运行'}  |  状态更新: ${st.updated_at||'-'}`;
+  // 统计卡
+  document.getElementById('stats').innerHTML = [
+    ['监控博主', ups.length],
+    ['已记录动态', Object.values(st.per_up||{}).reduce((a,b)=>a+b,0)],
+    ['监控状态', st.running?'运行':'停止']
+  ].map(c=>`<div class="stat"><div class="v">${c[1]}</div><div class="l">${c[0]}</div></div>`).join('');
+  // 博主列表
+  const list = document.getElementById('upList');
+  if(!ups.length){ list.innerHTML='<div style="text-align:center;color:var(--muted);padding:20px">暂无监控博主，请在上方添加</div>'; return; }
+  list.innerHTML = ups.map(u=>{
+    const dynCount = (st.per_up||{})[u.uid] || 0;
+    return `<div class="row">
+      <div>
+        <div class="name">${u.name||u.uid} <a class="link" href="https://space.bilibili.com/${u.uid}" target="_blank">↗</a></div>
+        <div class="uid">UID: ${u.uid}</div>
+        <div class="meta">添加于 ${u.added_at||'?'} · 已记录 ${dynCount} 条动态</div>
+      </div>
+      <div class="right">
+        <button class="danger" onclick="removeUp('${u.uid}','${u.name||u.uid}')">删除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function addUp(){
+  const uid = document.getElementById('newUid').value.trim();
+  if(!uid){ setMsg('请输入 UID', false); return; }
+  setMsg('添加中（拉取昵称）...', true);
+  try{
+    const r = await fetch(`/api/ups/add?uid=${encodeURIComponent(uid)}`,{method:'POST'}).then(r=>r.json());
+    if(r.ok){ setMsg(`✓ 已添加 ${r.up.name} (${r.up.uid})`, true); document.getElementById('newUid').value=''; load(); }
+    else setMsg('✗ '+r.error, false);
+  }catch(e){ setMsg('✗ '+e, false); }
+}
+
+async function removeUp(uid, name){
+  if(!confirm(`确认删除博主「${name}」？\n（删除后不再监控该博主，已记录动态保留）`)) return;
+  const r = await fetch(`/api/ups/remove?uid=${encodeURIComponent(uid)}`,{method:'POST'}).then(r=>r.json());
+  if(r.ok){ setMsg('✓ 已删除', true); load(); }
+  else setMsg('✗ 删除失败', false);
+}
+
+async function refreshNames(){
+  setMsg('刷新昵称中...', true);
+  const r = await fetch('/api/ups/refresh',{method:'POST'}).then(r=>r.json());
+  if(r.ok){ setMsg('✓ 昵称已刷新', true); load(); }
+  else setMsg('✗ 刷新失败', false);
+}
+
+load();
+setInterval(load, 10000);
+</script>
+</body>
+</html>

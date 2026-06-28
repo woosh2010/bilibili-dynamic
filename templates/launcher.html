@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B站项目启动面板</title>
+<style>
+  :root{--bg:#0d1117;--panel:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;--green:#3fb950;--red:#f85149;--gold:#d29922;--blue:#58a6ff}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;padding:24px;max-width:900px;margin:0 auto}
+  h1{font-size:22px;color:#fff;margin-bottom:4px}
+  .sub{color:var(--muted);font-size:12px;margin-bottom:20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;position:relative}
+  .card .name{font-size:15px;font-weight:600;color:#fff;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+  .card .desc{font-size:12px;color:var(--muted);margin-bottom:12px;min-height:32px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
+  .dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+  .actions{display:flex;gap:8px;align-items:center}
+  button{background:#21262d;color:var(--text);border:1px solid var(--border);padding:7px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500}
+  button:hover{border-color:var(--blue)}
+  button.start{background:#1f6f3f;color:#fff;border-color:#2ea043}
+  button.stop{background:#5a2323;color:#ffb4b4;border-color:#7a3333}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .status{font-size:11px;color:var(--muted);margin-top:8px}
+  .status.run{color:var(--green)}
+  .badge{font-size:10px;padding:2px 6px;border-radius:4px;background:#21262d;color:var(--muted);margin-left:auto}
+  a.link{color:var(--blue);text-decoration:none;font-size:12px}
+  .log{margin-top:14px;background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:10px;font-family:monospace;font-size:11px;max-height:160px;overflow:auto;white-space:pre-wrap;color:var(--muted);display:none}
+</style>
+</head>
+<body>
+<h1>🎮 B站项目启动面板</h1>
+<div class="sub">点按钮启动各功能模块 · 服务类可启停 · 一次性任务点击后查看日志</div>
+<div class="grid" id="grid"></div>
+<div class="log" id="log"></div>
+
+<script>
+let MODULES = [];
+
+function render(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = MODULES.map(m=>{
+    const isService = m.type==='service';
+    const running = m.running;
+    const btn = isService
+      ? (running
+          ? `<button class="stop" onclick="act('${m.id}','stop')">⏹ 停止</button>`
+          : `<button class="start" onclick="act('${m.id}','start')">▶ 启动</button>`)
+      : `<button class="start" onclick="act('${m.id}','start')">▶ 运行</button>`;
+    const link = m.port ? `<a class="link" href="http://localhost:${m.port}" target="_blank">打开 ↗</a>` : '';
+    return `<div class="card">
+      <div class="name"><span class="dot ${running?'on':''}"></span>${m.name}${isService?'<span class="badge">服务</span>':'<span class="badge">一次性</span>'}</div>
+      <div class="desc">${m.desc}</div>
+      <div class="actions">${btn}${link}</div>
+      <div class="status ${running?'run':''}">${running?'🟢 运行中 (PID '+m.pid+')':'⚪ 未运行'}</div>
+    </div>`;
+  }).join('');
+}
+
+async function load(){
+  try{
+    const d = await fetch('/api/modules').then(r=>r.json());
+    MODULES = d.modules||[];
+    render();
+  }catch(e){ console.error(e); }
+}
+
+async function act(id, op){
+  const r = await fetch(`/api/${op}?id=${id}`,{method:'POST'}).then(r=>r.json());
+  if(!r.ok && r.error){ alert(r.error); }
+  await load();
+  if(op==='start'){ showLog(id); }
+}
+
+async function showLog(id){
+  const log = document.getElementById('log');
+  log.style.display = 'block';
+  log.textContent = '加载日志...';
+  const t = await fetch(`/api/log/${id}`).then(r=>r.text());
+  log.textContent = `=== ${id}.log (末尾) ===\n` + t;
+  log.scrollTop = log.scrollHeight;
+}
+
+load();
+setInterval(load, 3000);  // 每3秒刷新状态
+</script>
+</body>
+</html>

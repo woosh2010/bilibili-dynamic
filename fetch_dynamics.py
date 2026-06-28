@@ -105,18 +105,45 @@ def resolve_uids(cli_uid: Optional[str]) -> List[str]:
 
 
 def _dynamic_text(item: Dict[str, Any]) -> str:
-    """从动态 item 提取可读标题/正文。"""
+    """从动态 item 提取全部文字内容（不截断，供 AI 分析）。
+
+    依次收集：动态配文(desc.text) + 视频(archive.title/desc) + 图文(opus.title/summary.text)
+    + 专栏(article.title/desc) + 通用/直播。返回拼接后的完整文本。
+    """
     m = item.get("modules", {}).get("module_dynamic", {}) or {}
+    parts: List[str] = []
     desc = (m.get("desc") or {}).get("text") or ""
-    if desc:
-        return desc.replace("\n", " ").strip()[:40]
+    if desc.strip():
+        parts.append(desc.strip())
     major = m.get("major") or {}
-    for k in ("archive", "opus", "article", "draw", "common", "live"):
+    arc = major.get("archive") or {}
+    if arc:
+        if arc.get("title"):
+            parts.append(f"【视频】{arc['title']}")
+        if arc.get("desc") and arc["desc"] != "-":
+            parts.append(arc["desc"])
+    opus = major.get("opus") or {}
+    if opus:
+        if opus.get("title"):
+            parts.append(f"【图文】{opus['title']}")
+        summ = (opus.get("summary") or {}).get("text") or ""
+        if summ.strip():
+            parts.append(summ.strip())
+    article = major.get("article") or {}
+    if article:
+        if article.get("title"):
+            parts.append(f"【专栏】{article['title']}")
+        if article.get("desc") and article["desc"] != "-":
+            parts.append(article["desc"])
+    for k in ("common", "live", "draw"):
         blk = major.get(k) or {}
-        title = (blk.get("title") or blk.get("desc") or blk.get("desc_first") or "").strip()
-        if title:
-            return title.replace("\n", " ")[:40]
-    return "(无文字内容)"
+        if blk.get("title"):
+            parts.append(str(blk["title"]))
+        if blk.get("desc") and blk["desc"] != "-":
+            parts.append(str(blk["desc"]))
+        if k == "draw" and blk.get("desc_first"):
+            parts.append(str(blk["desc_first"]))
+    return "\n".join(parts).strip()
 
 
 TYPE_LABELS = {
@@ -133,7 +160,8 @@ def print_dynamics(items: List[Dict[str, Any]], uid: str) -> None:
         a = m.get("module_author", {}) or {}
         t = TYPE_LABELS.get(it.get("type", ""), "动态")
         print(f"\n[{i}] [{t}] {a.get('name', '?')}  ·  {a.get('pub_time', '?')}")
-        print(f"    {_dynamic_text(it)}")
+        txt = _dynamic_text(it).replace("\n", " ")
+        print(f"    {txt[:60]}{'…' if len(txt) > 60 else ''}")
         if a.get("pub_ts"):
             print(f"    https://www.bilibili.com/opus/{it.get('id_str', '')}")
 
