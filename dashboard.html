@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B站动态 · 投资观察面板</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Neo-Trading Terminal — B站动态聚合面板
+   ============================================================ */
+:root {
+  --bg-deep: #0a0c10;
+  --bg-card: #13161d;
+  --bg-card-hover: #1a1e28;
+  --bg-panel: #0f1118;
+  --border: #1e2230;
+  --border-glow: #2a2e3d;
+  --text-primary: #e8e6e3;
+  --text-secondary: #8b8d93;
+  --text-muted: #5c5e65;
+  --accent-pink: #fb7299;
+  --accent-pink-glow: #fb729966;
+  --accent-cyan: #23d5e8;
+  --accent-cyan-glow: #23d5e844;
+  --accent-amber: #f5a623;
+  --accent-green: #4cdf80;
+  --accent-red: #ff5c72;
+  --author-1: #fb7299;
+  --author-2: #23d5e8;
+  --author-3: #f5a623;
+  --author-4: #a78bfa;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --font-display: 'Noto Serif SC', serif;
+  --font-body: 'Noto Sans SC', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ---- Background atmosphere ---- */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 10%, rgba(251,114,153,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 85%, rgba(35,213,232,0.03) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---- Noise texture overlay ---- */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 24px 32px; }
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.header-logo {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, var(--accent-pink), var(--accent-cyan));
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 0 24px rgba(251,114,153,0.25);
+}
+.header-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+.header-subtitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ---- Stats strip ---- */
+.stats-strip {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.stat-item {
+  text-align: right;
+}
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-pink), var(--accent-cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+
+/* ============================================================
+   AUTHOR BAR
+   ============================================================ */
+.author-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+.author-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 8px;
+  border-radius: 40px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  user-select: none;
+  position: relative;
+}
+.author-chip:hover {
+  border-color: var(--border-glow);
+  background: var(--bg-card-hover);
+  transform: translateY(-1px);
+}
+.author-chip.active {
+  border-color: var(--chip-color, var(--accent-pink));
+  box-shadow: 0 0 16px var(--chip-glow, transparent);
+}
+.author-chip .avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid transparent;
+  transition: border-color 0.25s;
+}
+.author-chip.active .avatar { border-color: var(--chip-color, var(--accent-pink)); }
+.author-chip .info { display: flex; flex-direction: column; }
+.author-chip .name { font-size: 13px; font-weight: 600; line-height: 1.2; }
+.author-chip .count { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+.author-chip .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--chip-color);
+  position: absolute;
+  top: 6px; right: 10px;
+  box-shadow: 0 0 8px var(--chip-glow);
+}
+
+/* ---- Type filter ---- */
+.filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  align-items: center;
+}
+.filter-row .label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-right: 8px;
+}
+.filter-btn {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.filter-btn:hover { border-color: var(--border-glow); color: var(--text-primary); }
+.filter-btn.active {
+  background: var(--bg-card);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+/* ============================================================
+   TIMELINE
+   ============================================================ */
+.timeline {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 860px) { .timeline { grid-template-columns: 1fr; } }
+
+/* ---- Card ---- */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  transition: all 0.3s ease;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+  animation: cardIn 0.5s ease both;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.card:hover {
+  border-color: var(--border-glow);
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+  background: var(--card-accent, var(--accent-pink));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.card:hover::before { opacity: 1; }
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Card header */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.card-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.card-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--card-accent, var(--text-primary));
+}
+.card-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-left: auto;
+}
+.card-type-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+.badge-video {
+  background: rgba(245,166,35,0.15);
+  color: var(--accent-amber);
+  border: 1px solid rgba(245,166,35,0.3);
+}
+.badge-opus {
+  background: rgba(35,213,232,0.12);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(35,213,232,0.25);
+}
+
+/* Card body */
+.card-body {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.card-body.expanded {
+  -webkit-line-clamp: unset;
+  display: block;
+}
+.card-expand {
+  font-size: 11px;
+  color: var(--accent-cyan);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  align-self: flex-start;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.card-expand:hover { opacity: 1; }
+
+/* Card footer */
+.card-footer {
+  display: flex;
+  gap: 18px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+.stat-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+}
+.stat-badge .val { color: var(--text-secondary); font-weight: 500; }
+.stat-badge.like .val { color: var(--accent-pink); }
+.stat-badge.comment .val { color: var(--accent-cyan); }
+.stat-badge.forward .val { color: var(--accent-green); }
+
+/* Card video link */
+.card-video-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--accent-amber);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(245,166,35,0.08);
+  border: 1px solid rgba(245,166,35,0.2);
+  transition: all 0.2s;
+  width: fit-content;
+}
+.card-video-link:hover {
+  background: rgba(245,166,35,0.15);
+  border-color: rgba(245,166,35,0.4);
+}
+.card-video-link .play-count {
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-muted);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+.empty-state .msg { font-size: 15px; font-family: var(--font-display); }
+
+/* ============================================================
+   LOADING
+   ============================================================ */
+.skeleton {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  height: 180px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-glow); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="header-logo">📊</div>
+      <div>
+        <div class="header-title">投资观察面板</div>
+        <div class="header-subtitle">Bilibili Dynamics · Multi-Author Feed</div>
+      </div>
+    </div>
+    <div class="stats-strip" id="statsStrip"></div>
+  </header>
+
+  <!-- Author chips -->
+  <div class="author-bar" id="authorBar"></div>
+
+  <!-- Filters -->
+  <div class="filter-row">
+    <span class="label">筛选</span>
+    <button class="filter-btn active" data-type="all">全部</button>
+    <button class="filter-btn" data-type="opus">📝 图文</button>
+    <button class="filter-btn" data-type="video">🎬 视频</button>
+  </div>
+
+  <!-- Timeline grid -->
+  <div class="timeline" id="timeline"></div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const DATA = [{"id_str": "1220835060850098180", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1783086213", "pub_time": "昨天 21:43", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "大家晚上好，趁着今晚有空，认真跟各位家人们说一件重要的事\n相信不少细心的朋友已经发现，今天账号的名字和头像全部更换了，换掉旧的标识，也是给自己一段时期的沉淀画上句号。这段时间一直在复盘过往的思路，梳理操作上的得失，不断优化自己的交易体系，剔除繁杂无用的内容，沉淀更贴合当下市场的实操逻辑\n换新名字、换新头像，不仅仅只是外在形式上的改变，更是我给自己定下的全新起点。过去有做得不够完善的地方，感谢大家一直以来包容与陪伴，一路不离不弃\n从下周开始，我们正式开启全新的征程。往后我会调整整体分享节奏，专注主线行情拆解，清晰分享仓位规划、入场离场逻辑，少空谈、多干货，摒弃浮躁跟风的操作思路，带着大家理性看待市场起伏，稳扎稳打把握每一轮机会\n市场永远在轮动变化，思路也需要与时俱进。新面貌，新规划，全新的布局节奏已经准备妥当。接下来的路，依旧和各位并肩同行，期待下周，我们以全新的状态，一起踏准行情，稳步前行！", "jump_url": "//www.bilibili.com/opus/1220835060850098180"}, "stats": {"like": 313, "comment": 141, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1220834326416982025", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1783086042", "pub_time": "昨天 21:40", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "下周起，把目光锁定 @无敌の简 ，全新节奏正式开启\n告别杂乱跟风，回归清晰交易逻辑。每日盘面拆解、主线梳理、仓位把控同步更新，不模棱两可，不画虚无大饼，只用实盘思路应对市场轮动\n愿各位跟上新节奏，理清思路、稳住心态，踏准每一波行情\n下周，我们一同重新出发！", "jump_url": "//www.bilibili.com/opus/1220834326416982025"}, "stats": {"like": 181, "comment": 47, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1220731586494857232", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1783062121", "pub_time": "昨天 15:02", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "今天没有做新的，留着等接下来的机会了", "jump_url": "//www.bilibili.com/opus/1220731586494857232"}, "stats": {"like": 24, "comment": 1, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1220727188458831894", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1783061097", "pub_time": "昨天 14:44", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/61a5117c1a518baa72d9286cd9f0b80f3690981155145964.png", "width": 872, "height": 483}], "title": "", "summary_text": "简哥精选跨周教学。以上内容仅供学 习交 流，不构成投 资建议，不作为投 资决 策的依 据，据 此 操 作，风 险自 担，股 市有风 险，投 资需谨 慎！​​​​\n", "jump_url": "//www.bilibili.com/opus/1220727188458831894"}, "stats": {"like": 178, "comment": 92, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1220723743876186128", "type": "DYNAMIC_TYPE_AV", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1783060295", "pub_time": "昨天 14:31", "text": "", "content": {"type": "video", "aid": "116854634841916", "bvid": "BV1pSTs6hE6u", "title": "10W重启，挑战带粉冲刺300W！不搞虚的，只做马前！近期暂时没有什么动作，等待机会，今天只埋伏了一只", "cover": "http://i2.hdslb.com/bfs/archive/3e61931499492ba7a58fc32ad4dac23a7994d7be.jpg", "duration": "01:08", "play": "805", "danmaku": "0", "desc": "-"}, "stats": {"like": 16, "comment": 7, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1220714591271518211", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1783058164", "pub_time": "昨天 13:56", "text": "", "content": {"type": "video", "aid": "116854483846367", "bvid": "BV1PtTx6vEsq", "title": "简哥20w实盘单吊一只中线趋势piao已经做到31.9w，今天做了个高抛，留了点底仓！", "cover": "http://i1.hdslb.com/bfs/archive/d49a571ace561fcb2a72c4e2353ce251d7dc49d2.jpg", "duration": "00:12", "play": "4101", "danmaku": "3", "desc": "-"}, "stats": {"like": 247, "comment": 93, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1220711425878523928", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1783057427", "pub_time": "昨天 13:43", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "机器人这两天确实有看点，走出一小波主升行情，看着格外诱人。但大家一定管住手控制仓位，别涨两天就头脑发热满仓干。目前板块还没完全走明朗，持续性存疑，没彻底走出趋势前，不推荐重仓猛干\n更何况今天周五，谁也说不准周末会不会突发各类行业、宏观消息，周末持仓风险不可忽视，仓位一定要留足容错空间", "jump_url": "//www.bilibili.com/opus/1220711425878523928"}, "stats": {"like": 162, "comment": 49, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1220689311084576792", "type": "DYNAMIC_TYPE_AV", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1783052278", "pub_time": "昨天 12:17", "text": "", "content": {"type": "video", "aid": "116854097970155", "bvid": "BV1epTp63EQY", "title": "5W全仓打满，冲击百万第53天，下午抄底新潜力龙头", "cover": "http://i1.hdslb.com/bfs/archive/cf2f5d721dd792e74c5fdd54f5ef8f51792cd400.jpg", "duration": "00:12", "play": "1763", "danmaku": "0", "desc": "-"}, "stats": {"like": 35, "comment": 14, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1220652692237451296", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1783043752", "pub_time": "昨天 09:55", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "彤程新材，冲高有肉可以先出来，个人观点，仅供参考", "jump_url": "//www.bilibili.com/opus/1220652692237451296"}, "stats": {"like": 19, "comment": 5, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1220649853230514182", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1783043091", "pub_time": "昨天 09:44", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "参与了大唐发电", "jump_url": "//www.bilibili.com/opus/1220649853230514182"}, "stats": {"like": 5, "comment": 3, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1220649346462122024", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1783042973", "pub_time": "昨天 09:42", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "关注：天风证券，大唐发电", "jump_url": "//www.bilibili.com/opus/1220649346462122024"}, "stats": {"like": 3, "comment": 0, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1220641542503399428", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1783041156", "pub_time": "昨天 09:12", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "指数整体看下跌中继，先修复就还会继续跌，就无买点只有卖点，先调整就有反弹需求，跌的越多反弹力度就越大，这时候就盘中或尾盘再找机会\n\n美联储加息预期延后，美股科技却高开低走，究其原因就是涨多了，A股也一样。退潮确立，毫无争议，接下来就更得抓节奏，今天如果继续分歧不管从指数层面和板块三冰层面都应该可以看机会，但是很多机会也未必是好机会，所以有些已经破位的票还是要谨慎\n\n退潮阶段，一定要控制关注度，另外这阶段想空仓的也是非常支持。如果是题材周期退潮，那必须要空，趋势周期，二冰三冰就还有博弈价值", "jump_url": "//www.bilibili.com/opus/1220641542503399428"}, "stats": {"like": 220, "comment": 73, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1220455299819765784", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1782997793", "pub_time": "2天前", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "这两天行情没什么好复盘的，收盘后我一直在沉下心梳理自己这几天的操作，深挖每一笔交易的得失盈亏，同时持续打磨交易体系、吸收新的实操思路，不断优化完善自己的操作逻辑。\n暂时亏损、节奏不顺的朋友也别灰心气馁，行情起伏本就是常态，不必被短期盈亏打乱心态。我会尽快调整好自身状态，沉淀完毕后，带着大家稳住节奏、重整旗鼓，一起打一场漂亮的翻身仗！", "jump_url": "//www.bilibili.com/opus/1220455299819765784"}, "stats": {"like": 363, "comment": 112, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1220436728389566465", "type": "DYNAMIC_TYPE_AV", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782993469", "pub_time": "2天前", "text": "", "content": {"type": "video", "aid": "116850255988503", "bvid": "BV1bsTE6WEdM", "title": "5倍已成，多氟多吃23%已撤，5W全仓打满，冲击百万第52天，明天潜力龙头已找到", "cover": "http://i0.hdslb.com/bfs/archive/f7053b8903c62da4ba5e03174e03b48c2fbe7752.jpg", "duration": "01:15", "play": "1944", "danmaku": "0", "desc": "-"}, "stats": {"like": 58, "comment": 10, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1220351348746223619", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1782973590", "pub_time": "2天前", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/afd78111827c504604d9ac7eef5a73213690981155145964.png", "width": 227, "height": 110}], "title": "", "summary_text": "一面两吃，创造历史以来单日最高亏损 记录一下，心态依旧良好\n", "jump_url": "//www.bilibili.com/opus/1220351348746223619"}, "stats": {"like": 231, "comment": 94, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1220320712695218194", "type": "DYNAMIC_TYPE_AV", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782966457", "pub_time": "2天前", "text": "", "content": {"type": "video", "aid": "116848477602724", "bvid": "BV1hATk6dEXf", "title": "5倍已成，多氟多拿下25cm，5W全仓打满，冲击百万第52天，潜力龙头已找到", "cover": "http://i1.hdslb.com/bfs/archive/f2a59a46f17be0e8a56c48b9da98c17ee305e61b.jpg", "duration": "00:12", "play": "2135", "danmaku": "0", "desc": "-"}, "stats": {"like": 40, "comment": 6, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1220305469885644821", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782962908", "pub_time": "2天前", "text": "", "content": {"type": "video", "aid": "116848242723278", "bvid": "BV17hTk6qEgV", "title": "简哥中线趋势还没走完，昨天加仓了，今天继续吃肉格局！", "cover": "http://i1.hdslb.com/bfs/archive/e63b62ad035c06fb269df0d96bfc952d04cb597a.jpg", "duration": "00:12", "play": "5188", "danmaku": "0", "desc": "-"}, "stats": {"like": 343, "comment": 159, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1220304138461511704", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782962598", "pub_time": "2天前", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/d7fae7cfff5f90ac4e65f6ea721407853706945254983823.png", "width": 1355, "height": 510}], "title": "", "summary_text": "昨天分享的永和股份，今天成功冲击涨停板，恭喜有跟上的朋友\n", "jump_url": "//www.bilibili.com/opus/1220304138461511704"}, "stats": {"like": 30, "comment": 3, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1220291678777114629", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782959697", "pub_time": "2天前", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "7.2 今日计划：彤程新材 巨化股份  个人观点，仅供参考", "jump_url": "//www.bilibili.com/opus/1220291678777114629"}, "stats": {"like": 23, "comment": 10, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1220281160366555138", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782957248", "pub_time": "2天前", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "兴森科技拿到下周，兄弟们别慌", "jump_url": "//www.bilibili.com/opus/1220281160366555138"}, "stats": {"like": 7, "comment": 8, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1220279399465615361", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1782956838", "pub_time": "2天前", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "五方我跌停走掉了，对不起兄弟们", "jump_url": "//www.bilibili.com/opus/1220279399465615361"}, "stats": {"like": 358, "comment": 216, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1220275271951712281", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782955877", "pub_time": "2天前", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/c82fd0ef6a257b040a7e3c4f75652fc73706945254983823.png", "width": 862, "height": 350}], "title": "", "summary_text": "周二分享的天娱数科成功封板，恭喜有跟上的朋友\n", "jump_url": "//www.bilibili.com/opus/1220275271951712281"}, "stats": {"like": 29, "comment": 7, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1220274365748215824", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1782955666", "pub_time": "2天前", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "市场情绪太差，科技调整，大家注意仓位管理，空仓也是一门学问。", "jump_url": "//www.bilibili.com/opus/1220274365748215824"}, "stats": {"like": 229, "comment": 82, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1220074654073356291", "type": "DYNAMIC_TYPE_AV", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1782909167", "pub_time": "3天前", "text": "", "content": {"type": "video", "aid": "116844719512981", "bvid": "BV18ZTq6CEdm", "title": "上半年结束！今天迎来七月第一天，下半年的行情布局正式拉开序幕！", "cover": "http://i1.hdslb.com/bfs/archive/d34fecd1a6125a87443e8747e5a3699305580e85.jpg", "duration": "02:21", "play": "7519", "danmaku": "8", "desc": ""}, "stats": {"like": 1098, "comment": 538, "forward": 8, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1220046358806790166", "type": "DYNAMIC_TYPE_AV", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782902579", "pub_time": "3天前", "text": "", "content": {"type": "video", "aid": "116844300141593", "bvid": "BV1AxTv6ZEQQ", "title": "5倍已成，多氟多拿下3板，5W全仓打满，冲击百万第51天，7月潜力龙头已备好", "cover": "http://i1.hdslb.com/bfs/archive/9803983c83b9b3353550d5bebd73899528df34ca.jpg", "duration": "01:54", "play": "1782", "danmaku": "0", "desc": "-"}, "stats": {"like": 60, "comment": 14, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1220010890972102662", "type": "DYNAMIC_TYPE_AV", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782894321", "pub_time": "3天前", "text": "", "content": {"type": "video", "aid": "116843746428884", "bvid": "BV1EjTi6XEQt", "title": "“真神”落袋56个点！10W重启，挑战带粉冲刺300W！不玩虚的只做真实！明天开始找新车！", "cover": "http://i1.hdslb.com/bfs/archive/aafb1213858d0ecd55427dec6522c841038062b3.jpg", "duration": "01:21", "play": "1557", "danmaku": "0", "desc": "-"}, "stats": {"like": 36, "comment": 7, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1219991074015019008", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1782889707", "pub_time": "3天前", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/1507593fc1aed0fc5628aec81956e4d33690981155145964.png", "width": 1018, "height": 157}, {"src": "http://i0.hdslb.com/bfs/new_dyn/0e1408fbc683a4a2ba4df52590f7e92d3690981155145964.png", "width": 577, "height": 487}, {"src": "http://i0.hdslb.com/bfs/new_dyn/2fb49cbcfdabc4a9f98e64e97858e19c3690981155145964.png", "width": 577, "height": 487}, {"src": "http://i0.hdslb.com/bfs/new_dyn/45c83db230762af33915a33f4de079b03690981155145964.png", "width": 577, "height": 487}], "title": "", "summary_text": "回顾16号的早盘计划，真有点吓人啊[大会员专属身份表情包_超绝]\n", "jump_url": "//www.bilibili.com/opus/1219991074015019008"}, "stats": {"like": 228, "comment": 87, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1219986852031758338", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782888724", "pub_time": "3天前", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "兴森科技大家尾盘注意：守住47.10就拿着，跌破立马走！", "jump_url": "//www.bilibili.com/opus/1219986852031758338"}, "stats": {"like": 5, "comment": 6, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1219965957043126291", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1782883859", "pub_time": "3天前", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "今天这牛生病了，给自己买了点药，怕自己买错药吃多了，又给自己买了个保险 [大会员专属身份表情包_神迹]", "jump_url": "//www.bilibili.com/opus/1219965957043126291"}, "stats": {"like": 250, "comment": 103, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1219961692140601351", "type": "DYNAMIC_TYPE_AV", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782882866", "pub_time": "3天前", "text": "", "content": {"type": "video", "aid": "116843008297253", "bvid": "BV1XCTY6qE2Y", "title": "5倍已成，多氟多爽吃3板，5W全仓打满，冲击百万第51天，7月潜力龙头已备好", "cover": "http://i1.hdslb.com/bfs/archive/bcb564b98650eaa6bea8aca20bc6e368b5db704b.jpg", "duration": "00:12", "play": "2079", "danmaku": "0", "desc": "-"}, "stats": {"like": 44, "comment": 20, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219929990952386564", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782875485", "pub_time": "3天前", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/dccecba38d5717652722ee151d9787ce3706945254983823.png", "width": 774, "height": 282}], "title": "", "summary_text": "早上分享的永和成功涨停板\n", "jump_url": "//www.bilibili.com/opus/1219929990952386564"}, "stats": {"like": 27, "comment": 3, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219928182805757957", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1782875064", "pub_time": "3天前", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/114e30a8f13007380b16686af6bc9ed23690981155145964.jpg", "width": 1200, "height": 686}], "title": "", "summary_text": "五方本来想走了的，想想兄弟们都在里面，继续回来跟大家一起格局。\n", "jump_url": "//www.bilibili.com/opus/1219928182805757957"}, "stats": {"like": 269, "comment": 130, "forward": 2, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1219911312131227667", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782871136", "pub_time": "3天前", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "巨石早上走势弱就换成超声电子了，个人观点，仅供参考", "jump_url": "//www.bilibili.com/opus/1219911312131227667"}, "stats": {"like": 23, "comment": 9, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219905062959054870", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782869681", "pub_time": "3天前", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "7.1 今日计划：永和股份 超声电子 通富微电 ，个人观点，仅供参考", "jump_url": "//www.bilibili.com/opus/1219905062959054870"}, "stats": {"like": 33, "comment": 5, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219904856838373379", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782869633", "pub_time": "3天前", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "加舱了兴森科技", "jump_url": "//www.bilibili.com/opus/1219904856838373379"}, "stats": {"like": 5, "comment": 16, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1219904496010788870", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782869549", "pub_time": "3天前", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "关注：兴森科技，圣泉集团\n个人观点，仅供参考，不构成任何建议", "jump_url": "//www.bilibili.com/opus/1219904496010788870"}, "stats": {"like": 3, "comment": 0, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1219675703137533959", "type": "DYNAMIC_TYPE_AV", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782816279", "pub_time": "06月30日", "text": "", "content": {"type": "video", "aid": "116838646154758", "bvid": "BV1uhTF6qEvB", "title": "4倍已成，多氟爽吃2板，5W全仓打满，冲击百万第50天，7月潜力龙头已备好", "cover": "http://i0.hdslb.com/bfs/archive/e8948517c05670632a1a349d8a24366d37c0c07b.jpg", "duration": "01:23", "play": "1835", "danmaku": "0", "desc": "-"}, "stats": {"like": 66, "comment": 12, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219626195017007125", "type": "DYNAMIC_TYPE_FORWARD", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782804752", "pub_time": "06月30日", "text": "你们自己看看这个评论区，一人一句话褒贬不一 ，什么叫小号没得黑，要黑去黑大号？真的挺心寒······", "content": {"type": "none"}, "stats": {"like": 188, "comment": 86, "forward": 0, "coin": 0}, "forward": {"error": "解析转发动态失败", "id_str": "1219604166143377415"}, "_uid": 3690980475668810}, {"id_str": "1219621002430906373", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782803543", "pub_time": "06月30日", "text": "", "content": {"type": "video", "aid": "116837807295818", "bvid": "BV1uxKZ6AE2J", "title": "简哥第二波中线趋势票安稳落袋，中线暂时告一段落，后续再做决定！", "cover": "http://i2.hdslb.com/bfs/archive/319ade979e2206e340b76dd1eb52ca1f11d0257f.jpg", "duration": "00:12", "play": "5158", "danmaku": "1", "desc": "-"}, "stats": {"like": 310, "comment": 131, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1219604166143377415", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782799623", "pub_time": "06月30日", "text": "", "content": {"type": "opus", "images": [], "title": "​这段时间大家的反馈，说实话属实让我失望", "summary_text": "熟悉我的老粉都清楚，不管是短线快进快出，还是中长线布局，简哥一直都是踏踏实实地带着大家稳步盈利回本，全程思路公开、逻辑透明，可即便保持这么高的整体胜率，依旧有人对我实盘的真实性心存怀疑，要大家发收益截图大家不发就算了，甚至很多人连一句谢谢都没有，还有不少人揪着我的短线操作无端抹黑，说我实盘数据作假。那我倒想好好问问大家，每期分享的中线标的，都是深挖行业逻辑、吃透公司基本面筛选出来的，拿住格局安心持有，轻轻松松拿下几十个点的收益，这种实打实拿到手的利润，难道也能凭空造假？\n这段时间小助理那边的数据和评论区我都看在眼里，视频点赞、互动热度肉眼可见下滑，夹杂着不少不分青红皂白的恶评，一次次消耗我的真心，也让我真切体会到何为心寒。前后两波中线布局，综合收益最低都有五十个点，全程不用频繁操作、不用时刻盯盘承受短线震荡的煎熬\n\n当初很多粉丝留言说短线节奏快、跟不上行情，内心胆怯不敢下手，我看到大家的诉求后，立刻专门开设中线实盘账户，就是想给所有人一条躺赚的稳妥路线，不用担惊受怕，稳稳拿住波段收益。可即便给到这么省心高收益的机会，依旧有人不知足，凭空揣测、怀疑我的初心和实盘真实性\n抛开收益不谈，你们去平台翻一翻，很难找到第二个我这样真心实意宠粉的up吧。大家想学什么选股技巧、复盘思路、仓位把控、基本面分析，只要你们开口，我都会花大量时间整理完整干货，无偿拆解、细致教学，毫无保留的在动态专栏里面分享自己多年实操积累的经验\n我掏心掏肺为粉丝考虑，事事顺着大家的需求调整方案，倾尽心力输出干货，到头来换来的却是猜忌、抹黑与不信任，长期消耗下来实在心力交瘁\n思来想去，我做了最终决定：从明天起，也就是下个月开始，不再更新任何中线标的，不再分享中线布局选票\n后续只会保留短线思路、基础交易干货教学，不再耗费大量精力筛选中线个股、跟踪中长期行情。信任我的朋友，后续短线内容依旧正常更新，实操技巧、行情解读我依旧毫无保留；始终心存疑虑、习惯性猜忌的朋友，也不必再纠结，咱们互不打扰\n做账号这么久，我从来没想过靠套路收割任何人，一心只想带着普通人稳定盈利，只可惜真心难换真心。往后不再耗费精力做费力不讨好的中线布局，专心简化内容，只留给愿意相信、踏实学习的同路人！", "jump_url": "//www.bilibili.com/opus/1219604166143377415"}, "stats": {"like": 443, "comment": 247, "forward": 2, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1219561233651335170", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782789627", "pub_time": "06月30日", "text": "", "content": {"type": "video", "aid": "116836884677871", "bvid": "BV1ouKd6KEum", "title": "简哥中线趋势账户全仓京东方A吃涨停！稳稳到手26个点！还在继续格局！", "cover": "http://i0.hdslb.com/bfs/archive/20c573bb02398ed17eb673e1d15ea65e8a547fdc.jpg", "duration": "00:33", "play": "3994", "danmaku": "3", "desc": "-"}, "stats": {"like": 240, "comment": 72, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1219556822719922177", "type": "DYNAMIC_TYPE_AV", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782788600", "pub_time": "06月30日", "text": "", "content": {"type": "video", "aid": "116836817503195", "bvid": "BV1eLKd6wEJ5", "title": "4倍已成，多氟爽吃2板，5W全仓打满，冲击百万第50天，继续起飞", "cover": "http://i0.hdslb.com/bfs/archive/5e260f8fc70fa3fd4bae007e328c99707a582bc6.jpg", "duration": "00:12", "play": "2082", "danmaku": "0", "desc": "-"}, "stats": {"like": 43, "comment": 17, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219548606473699331", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782786687", "pub_time": "06月30日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "6.30 今日计划：中国巨石，个人观点，仅供参考", "jump_url": "//www.bilibili.com/opus/1219548606473699331"}, "stats": {"like": 30, "comment": 5, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219547777518796807", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782786494", "pub_time": "06月30日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/469ce60a856c2efcb4615be95e89d43b3690980475668810.png", "width": 448, "height": 488}], "title": "", "summary_text": "芜湖\n", "jump_url": "//www.bilibili.com/opus/1219547777518796807"}, "stats": {"like": 123, "comment": 24, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1219547249248305155", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782786371", "pub_time": "06月30日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "6.30 今日计划：天娱数科 个人观点，仅供参考", "jump_url": "//www.bilibili.com/opus/1219547249248305155"}, "stats": {"like": 24, "comment": 6, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219540974318911492", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782784910", "pub_time": "06月30日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "今天继续关注兴森科技，不过我暂时不会动，兄弟们要入的注意轻舱，近期风险还是比较高的", "jump_url": "//www.bilibili.com/opus/1219540974318911492"}, "stats": {"like": 4, "comment": 4, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1219538384463069200", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782784307", "pub_time": "06月30日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "6.30 今日计划：沃格光电 个人观点，仅供参考", "jump_url": "//www.bilibili.com/opus/1219538384463069200"}, "stats": {"like": 29, "comment": 4, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219538251280285702", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782784276", "pub_time": "06月30日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "有研新材目前反弹水下，目前我们利润已经很高了，今天可以先下车了，等明天机会了", "jump_url": "//www.bilibili.com/opus/1219538251280285702"}, "stats": {"like": 3, "comment": 8, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1219304824109006852", "type": "DYNAMIC_TYPE_AV", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782729927", "pub_time": "06月29日", "text": "", "content": {"type": "video", "aid": "116832975457723", "bvid": "BV1drKQ6oEB5", "title": "4倍已成，长电爽吃48%已清，5W全仓打满，冲击百万第49天，明天潜力龙头已备好", "cover": "http://i1.hdslb.com/bfs/archive/0866ceff01b1639c0a8e1889eb5ca7437de69063.jpg", "duration": "01:20", "play": "2165", "danmaku": "1", "desc": "-"}, "stats": {"like": 80, "comment": 13, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219235752477458501", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782713845", "pub_time": "06月29日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "一个票做 T 首先你们得了解它，摸透它的股性\n清楚主力操盘节奏，早盘冲高还是尾盘拉升；牢记关键价位，支撑在哪、压力在哪；看懂资金流向，大单进出分辨真假涨跌\n要吃透基本面，突发利好利空、行业消息、龙虎资金动向心里有数，避免一有风吹草动就被洗飞；还要盯成交量，放量拉升能不能持续，缩量阴跌是不是诱空，量价配合才敢下手做差价\n管住仓位和贪心，底仓不动，只用小仓滚动，不追高加仓、不低位割完踏空。", "jump_url": "//www.bilibili.com/opus/1219235752477458501"}, "stats": {"like": 140, "comment": 24, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1219230035863404551", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782712514", "pub_time": "06月29日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "杭氧股份，国内空分设备+大宗气体双龙头，全产业链布局优势显著。 （此内容仅供教学所需，不构成操 作依据，据此交 易 需自行承担风险！）", "jump_url": "//www.bilibili.com/opus/1219230035863404551"}, "stats": {"like": 38, "comment": 10, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219224808885059588", "type": "DYNAMIC_TYPE_AV", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782711297", "pub_time": "06月29日", "text": "", "content": {"type": "video", "aid": "116831750785523", "bvid": "BV1KfKS6BEh1", "title": "10W重启，挑战带粉冲刺300！不玩虚的！只做真实！今天风险较大，暂时无动作。", "cover": "http://i1.hdslb.com/bfs/archive/2d0051fb340a161b98dbf3bdee6a1ffcc3d98568.jpg", "duration": "01:42", "play": "1531", "danmaku": "0", "desc": "-"}, "stats": {"like": 20, "comment": 1, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1219188550764855298", "type": "DYNAMIC_TYPE_AV", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782702855", "pub_time": "06月29日", "text": "", "content": {"type": "video", "aid": "116831197137133", "bvid": "BV1iCT56RE5d", "title": "4倍已成，长电爽吃48%已撤，京东方A14%也走，下午准备抄底新潜力龙", "cover": "http://i1.hdslb.com/bfs/archive/11bc70202ed4f989dc0c296a25aa2dcd77596884.jpg", "duration": "00:12", "play": "2501", "danmaku": "0", "desc": "-"}, "stats": {"like": 54, "comment": 6, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219187833506365444", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782702688", "pub_time": "06月29日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/670c17413aaef34ffc8d6b0130fbc8fd3690980475668810.png", "width": 1474, "height": 960}], "title": "", "summary_text": "京东方小T了一下，还在格局没走。\n", "jump_url": "//www.bilibili.com/opus/1219187833506365444"}, "stats": {"like": 85, "comment": 32, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1219179432542994449", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782700732", "pub_time": "06月29日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/4f7b67b2cf8de4bb1c10e5c8ec3868b73706945254983823.jpg", "width": 1206, "height": 775}], "title": "", "summary_text": "之前在平台停更了好一阵子，没我给思路的日子，不少粉丝自己摸索操作，踩了不少坑，收益很不理想。只有独自碰壁的过程才更明白，要珍惜每一个愿意真心给你方向、带你避坑的领路人，有人指路，远比自己盲目乱闯轻松太多。", "jump_url": "//www.bilibili.com/opus/1219179432542994449"}, "stats": {"like": 40, "comment": 8, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219173758902730772", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782699411", "pub_time": "06月29日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "今天风险有点高，我暂时不买新的了", "jump_url": "//www.bilibili.com/opus/1219173758902730772"}, "stats": {"like": 6, "comment": 5, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1219172625033461767", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782699147", "pub_time": "06月29日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "长电科技和京东方A，我今天冲高就止盈出局了（此内容仅供教学所需，不构成操 作依据，据此交 易 需自行承担风险！）", "jump_url": "//www.bilibili.com/opus/1219172625033461767"}, "stats": {"like": 29, "comment": 5, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219169549805420544", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1782698431", "pub_time": "06月29日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/c4147ad4352bdba6aceb7bd2191a39e23706945254983823.png", "width": 932, "height": 512}], "title": "", "summary_text": "多氟多周末有利好消息，今天一字板涨停，恭喜有跟上的朋友！\n", "jump_url": "//www.bilibili.com/opus/1219169549805420544"}, "stats": {"like": 32, "comment": 11, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1219163790261616643", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782697090", "pub_time": "06月29日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "关注：有研新材，华微电子，兴森科技\n个人观点，不构成任何建议", "jump_url": "//www.bilibili.com/opus/1219163790261616643"}, "stats": {"like": 3, "comment": 13, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1218130120520237058", "type": "DYNAMIC_TYPE_AV", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782456420", "pub_time": "06月26日", "text": "", "content": {"type": "video", "aid": "116815057388624", "bvid": "BV1Yu7G6iET2", "title": "强者恒强，“妖王”名不虚传！10W重启，挑战带粉冲刺300W！不搞虚的！只做马前！", "cover": "http://i1.hdslb.com/bfs/archive/659121ba007d1b9fa20f63c564e1d25cd32feca5.jpg", "duration": "02:12", "play": "1586", "danmaku": "0", "desc": "-"}, "stats": {"like": 27, "comment": 12, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1218062839854399497", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782440755", "pub_time": "06月26日", "text": "", "content": {"type": "video", "aid": "116814033979176", "bvid": "BV1zC7q6JEG3", "title": "简哥20w梭哈一只中线账户，今天汇报一下战况！", "cover": "http://i2.hdslb.com/bfs/archive/f7e79c374541f2ec05a9d592d120698675e55230.jpg", "duration": "00:12", "play": "4911", "danmaku": "0", "desc": "-"}, "stats": {"like": 190, "comment": 80, "forward": 3, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1218059657255321640", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782440014", "pub_time": "06月26日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/8cdbc33821d983539b2cbd40d61af20d3690980475668810.png", "width": 838, "height": 481}], "title": "", "summary_text": "拿住咯 兄弟们 拿不住的去打螺丝，打螺丝就拿得住了\n", "jump_url": "//www.bilibili.com/opus/1218059657255321640"}, "stats": {"like": 88, "comment": 22, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1218053678647214088", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782438622", "pub_time": "06月26日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "宏昌电子有回踩的话也可以进点，这个机会不错，早盘没看到，这种走势趋势很好", "jump_url": "//www.bilibili.com/opus/1218053678647214088"}, "stats": {"like": 1, "comment": 8, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1218050998625370163", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782437998", "pub_time": "06月26日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "没舱位了，暂时没看到很好的，有舱位还不如再追点兴森科技，这么强势", "jump_url": "//www.bilibili.com/opus/1218050998625370163"}, "stats": {"like": 2, "comment": 6, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1217756995179774000", "type": "DYNAMIC_TYPE_AV", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782369545", "pub_time": "06月25日", "text": "", "content": {"type": "video", "aid": "116809353137127", "bvid": "BV1pP7a6rEeg", "title": "打压结束，开始起飞！手持一个“妖王”，今日回归两只“妖王”！10W重启，挑战带粉冲刺300W！不搞虚的！只做马前！", "cover": "http://i1.hdslb.com/bfs/archive/a91ec808db7a5aaa7c625714d1722f0cd94a3019.jpg", "duration": "02:19", "play": "1645", "danmaku": "1", "desc": "-"}, "stats": {"like": 25, "comment": 5, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1217698411869896710", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782355905", "pub_time": "06月25日", "text": "", "content": {"type": "video", "aid": "116808464009907", "bvid": "BV1mD7b6kEt4", "title": "简哥20w梭哈一只，今日战况汇报！", "cover": "http://i1.hdslb.com/bfs/archive/7ae37e330aa734ed14ea389a3934292d229565d8.jpg", "duration": "00:12", "play": "4376", "danmaku": "0", "desc": "-"}, "stats": {"like": 183, "comment": 40, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1217684728072634372", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782352719", "pub_time": "06月25日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/72ac9be2a238539ea3b945fcec64dc233690980475668810.png", "width": 797, "height": 488}], "title": "", "summary_text": "拿住咯兄弟们，两边都吃大肉！\n", "jump_url": "//www.bilibili.com/opus/1217684728072634372"}, "stats": {"like": 113, "comment": 39, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1217684573452763145", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782352683", "pub_time": "06月25日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "医药板块确实是在大跌，亚泰集团不是只有医药概念，今天肯定受影响，明后天肯定还有反弹，等反弹再走吧", "jump_url": "//www.bilibili.com/opus/1217684573452763145"}, "stats": {"like": 3, "comment": 4, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1217680330064920616", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782351695", "pub_time": "06月25日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "再追一波宗申动力（轻苍）", "jump_url": "//www.bilibili.com/opus/1217680330064920616"}, "stats": {"like": 6, "comment": 11, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1217678938497613832", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782351371", "pub_time": "06月25日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "参与了兴森科技，老朋友我又来了[脱单doge]", "jump_url": "//www.bilibili.com/opus/1217678938497613832"}, "stats": {"like": 9, "comment": 7, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1217503471899508755", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782310517", "pub_time": "06月24日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "京东方A（000725）\n今天低开高走，全天高位震荡，量价齐升，验证结构位和5日均线支撑向上反弹，股价站上阶段高点，继续持股不动！\n核心逻辑：趋势未坏，资J关注度仍在，今日量价配合良好，继续向上看趋势", "jump_url": "//www.bilibili.com/opus/1217503471899508755"}, "stats": {"like": 140, "comment": 29, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1217384179158745089", "type": "DYNAMIC_TYPE_AV", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782282742", "pub_time": "06月24日", "text": "", "content": {"type": "video", "aid": "116803665661666", "bvid": "BV1HdjX6YECc", "title": "两只“妖王”昨日落袋，还有一只“妖王”今天依旧强势！10W重启，挑战带粉冲刺300W！不搞虚的，只做马前！今天继续埋伏两只，等待表现！", "cover": "http://i1.hdslb.com/bfs/archive/defb042f2b4468978cf8d5b096f6324e7ca65e51.jpg", "duration": "01:57", "play": "1383", "danmaku": "2", "desc": "-"}, "stats": {"like": 27, "comment": 3, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1217371801046220806", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782279860", "pub_time": "06月24日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "有研新材目前在强势拉升，兄弟们还是那句话，看着有要打板的趋势，不过还是那句话，不必盲目贪心。如果尾盘确实能封板，你可以拿着不出，如果没有封板，就落袋一部分！现在落袋25个点以上肯定有了。我今天大概率会先落袋一半！除非封板一直封下去！", "jump_url": "//www.bilibili.com/opus/1217371801046220806"}, "stats": {"like": 11, "comment": 1, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1217369941327478791", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782279427", "pub_time": "06月24日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/6808d56e8b4f1593187e91cb59071acc3690980475668810.png", "width": 741, "height": 481}], "title": "", "summary_text": "端午节前卖飞了三个板啊[大哭]\n", "jump_url": "//www.bilibili.com/opus/1217369941327478791"}, "stats": {"like": 121, "comment": 47, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1217329822053695527", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "论道至简", "mid": 3690981155145964, "face": "https://i1.hdslb.com/bfs/face/6be972a4076c4320565ed74b12fc6f68042442d9.jpg"}, "pub_ts": "1782270086", "pub_time": "06月24日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/07859c99fa43536793ede0bd6704a5a43690981155145964.jpg", "width": 396, "height": 396}], "title": "", "summary_text": "学x莱\n", "jump_url": "//www.bilibili.com/opus/1217329822053695527"}, "stats": {"like": 403, "comment": 139, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690981155145964}, {"id_str": "1217314274287812630", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782266466", "pub_time": "06月24日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "轻苍追了点远东GF", "jump_url": "//www.bilibili.com/opus/1217314274287812630"}, "stats": {"like": 4, "comment": 11, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1217313380895817731", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782266258", "pub_time": "06月24日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "有研新材兄弟们注意今天要减仓，今天低开没有走强，那就出，目前就医药这种防御性板块走强，之前的强势估计暂时都会轮动", "jump_url": "//www.bilibili.com/opus/1217313380895817731"}, "stats": {"like": 3, "comment": 8, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1217311697260249097", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782265866", "pub_time": "06月24日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "害！打压不知道要多久，宗申动力这太难看了[酸了]如果有拉高动作我就直接走了，兄弟们建议别死扛，真的不知道要持续多久这个打杀", "jump_url": "//www.bilibili.com/opus/1217311697260249097"}, "stats": {"like": 5, "comment": 11, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1217309953545469957", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782265460", "pub_time": "06月24日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "参与了亚泰集团（PS：昨天的打压还在持续，近期先考虑郑券或者医药做超短吧）", "jump_url": "//www.bilibili.com/opus/1217309953545469957"}, "stats": {"like": 6, "comment": 4, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1217021507819012152", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782198301", "pub_time": "06月23日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "京东方a我还在格局，大家不要慌。", "jump_url": "//www.bilibili.com/opus/1217021507819012152"}, "stats": {"like": 142, "comment": 76, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1217012273615208451", "type": "DYNAMIC_TYPE_AV", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782196151", "pub_time": "06月23日", "text": "", "content": {"type": "video", "aid": "116797995027115", "bvid": "BV1iRjy6wEwj", "title": "已落袋两只“妖王”！大吃53个点！10W重启，挑战带粉冲刺300W！不搞虚的！只做马前！", "cover": "http://i1.hdslb.com/bfs/archive/568b899cfd706e7e1ff1d7e96af76cc40f03fd67.jpg", "duration": "01:37", "play": "1517", "danmaku": "1", "desc": "-"}, "stats": {"like": 27, "comment": 6, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1216947269339709493", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782181016", "pub_time": "06月23日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "兴森科技和共达电声，今天有位置可以逐步下车了，有研继续看看", "jump_url": "//www.bilibili.com/opus/1216947269339709493"}, "stats": {"like": 2, "comment": 1, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1216946912864763908", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782180933", "pub_time": "06月23日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "指数这两天有点失真，因为券商保险在拉指数，但个股特别是科技类高位的在出现高低切换，高位纷纷下杀厉害，所以近期切勿追高（PS：今天突发情况，宗申这次失误有点大了，害，对不起兄弟们[酸了]），而是高抛，等待市场新的主线机会！\n今天盘面来看，生物医药、房地产、券商在护指数，这明显是主力资金在低位切换的表现，持续性不会太强，但短期避免市场出现巨大震荡还是有作用的。不过并不影响小散做不好也容易亏", "jump_url": "//www.bilibili.com/opus/1216946912864763908"}, "stats": {"like": 6, "comment": 6, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1216936871229128712", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782178595", "pub_time": "06月23日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "“真神”共达电声已经涨停啦！另一个“真神”有研还远嘛[脱单doge]", "jump_url": "//www.bilibili.com/opus/1216936871229128712"}, "stats": {"like": 3, "comment": 1, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1216936046576533506", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782178403", "pub_time": "06月23日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "参与了宗申动力", "jump_url": "//www.bilibili.com/opus/1216936046576533506"}, "stats": {"like": 4, "comment": 8, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1216935217636311041", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782178210", "pub_time": "06月23日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "关注：圣泉集团\n个人观点，不构成任何意见！", "jump_url": "//www.bilibili.com/opus/1216935217636311041"}, "stats": {"like": 1, "comment": 2, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1216649263010807808", "type": "DYNAMIC_TYPE_AV", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782111631", "pub_time": "06月22日", "text": "", "content": {"type": "video", "aid": "116792458481020", "bvid": "BV1Lt7P6HE2e", "title": "两只“真神”今天大放异彩！双板给兄弟们奉上！10W挑战带粉冲刺300W！不搞虚的！只做马前！", "cover": "http://i2.hdslb.com/bfs/archive/de254ea402ebf6e4a5264aff60d2e50fe08d75f8.jpg", "duration": "02:29", "play": "1291", "danmaku": "0", "desc": "-"}, "stats": {"like": 29, "comment": 8, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1216631095294951432", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782107401", "pub_time": "06月22日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "节后目前还在乱市中，预计这几天大盘是冲高回震荡回落为主，等盘面稳下来确定好了主线热点，我再给大家选点新的漂～[脱单doge]另外，中衡设计大家没耐心的，今天拉高到10.39以上直接走吧，很多人的位置比我都好，估计也就割5个点，中长线看到就是技术趋势，板块趋势，以及磨练人心，特别是设置抄低位的。我说实话，我扛不住了，太多人问了，至少这只漂上，我心态受影响了，我也出了，害，以后专心做短线吧，这个户[笑哭]", "jump_url": "//www.bilibili.com/opus/1216631095294951432"}, "stats": {"like": 10, "comment": 5, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1216600510837030921", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782100280", "pub_time": "06月22日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/7acace746a44b09af2b031775671334f3706970181733126.jpg", "width": 1242, "height": 2208}], "title": "", "summary_text": "恭喜近期跟车吃肉的兄弟！步伐要跟紧哈～\n", "jump_url": "//www.bilibili.com/opus/1216600510837030921"}, "stats": {"like": 5, "comment": 3, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1216584881469915157", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782096641", "pub_time": "06月22日", "text": "", "content": {"type": "video", "aid": "116791468625649", "bvid": "BV1LW7w6jEf9", "title": "简哥中长线趋势账户20w全仓梭哈一只挑战翻倍到2000w，今天新开jdf格局！", "cover": "http://i2.hdslb.com/bfs/archive/6a2286dee2d2db080cdb23eb4c9f8eea9d55a37a.jpg", "duration": "00:12", "play": "8415", "danmaku": "1", "desc": "-"}, "stats": {"like": 180, "comment": 97, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1216583464141193218", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "一虹冲天", "mid": 3706970181733126, "face": "https://i1.hdslb.com/bfs/face/10a950b509066f892e3243062e5c69e40d682fe2.jpg"}, "pub_ts": "1782096311", "pub_time": "06月22日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "中衡设计很多兄弟在问，虽然是中线，但是确实磨人，而且今天跌破十字星最低位，目前的企稳现象又变得模糊了，实在熬不住，大家就下车吧，现在应该就几个点。我都被问到心态有问题了，算了，我今天也走了，还是专门搞短线吧，中线只适合一个人做[笑哭]", "jump_url": "//www.bilibili.com/opus/1216583464141193218"}, "stats": {"like": 8, "comment": 8, "forward": 0, "coin": 0}, "forward": null, "_uid": 3706970181733126}, {"id_str": "1216567508337688581", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1782092596", "pub_time": "06月22日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "京东方A 做一波趋势。以上内容仅供学 习交 流，不构成投 资建议，不作为投 资决 策的依 据，据 此 操 作，风 险自 担，股 市有风 险，投 资需谨 慎！​​​​", "jump_url": "//www.bilibili.com/opus/1216567508337688581"}, "stats": {"like": 95, "comment": 50, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1215181561039683623", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1781769905", "pub_time": "06月18日", "text": "", "content": {"type": "video", "aid": "116770060897700", "bvid": "BV1DWjc6YEaN", "title": "简哥20w梭哈今天三孚已落袋，节后带大家开启新的短线趋势之旅！", "cover": "http://i1.hdslb.com/bfs/archive/91f744610c12313a2d35855b8c54c6239ef5b217.jpg", "duration": "01:14", "play": "9389", "danmaku": "2", "desc": ""}, "stats": {"like": 420, "comment": 126, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1215162641688821760", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1781765500", "pub_time": "06月18日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/eb1c9debc591f1560de2fac455a1e3e53690980475668810.png", "width": 894, "height": 483}], "title": "", "summary_text": "跨节龙，以上内容仅供学 习交 流，不构成投 资建议，不作为投 资决 策的依 据，据 此 操 作，风 险自 担，股 市有风 险，投 资需谨 慎！​​​​\n", "jump_url": "//www.bilibili.com/opus/1215162641688821760"}, "stats": {"like": 71, "comment": 24, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1215155207122452481", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1781763769", "pub_time": "06月18日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "三孚我今天清掉了，下周准备开新仓！", "jump_url": "//www.bilibili.com/opus/1215155207122452481"}, "stats": {"like": 100, "comment": 18, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1215151487677628433", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1781762903", "pub_time": "06月18日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/0b769efdaf4f8b694662247684783b773690980475668810.png", "width": 776, "height": 461}], "title": "", "summary_text": "端午跨节教学置顶动态+满200个公开\n", "jump_url": "//www.bilibili.com/opus/1215151487677628433"}, "stats": {"like": 129, "comment": 9, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1214705438121000969", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1781659049", "pub_time": "06月17日", "text": "", "content": {"type": "opus", "images": [], "title": "模式切换", "summary_text": "做完这波三孚，准备切换到短线趋势之旅！\n短线趋势：赚的是「资金情绪、当下强弱」的钱\n切换短线趋势节奏，不是乱炒、不是超短博弈，而是只做当下最强的趋势、最活跃的资金、最明确的当下行情\n短线趋势的本质，是借势。不赌未来、不熬预期，只赚当下资金接力、趋势延续的差价收益。\n短线趋势的核心特点：\n持仓周期：1–10天为主，吃一波快速拉升的主升段，不恋战\n赚钱逻辑：赚市场情绪、资金博弈、短期趋势惯性的钱\n选股标准：不纠结长期基本面，只看当下强弱、量能、趋势、龙头地位\n操作节奏：顺势而为，强者恒强，突破就跟、走弱就撤，节奏极快\n止损容错：容错率极低，严格止损，不扛单、不套牢、不幻想\n适合行情：市场轮动快、持续性差、结构性行情、震荡市\n做短线趋势，拼的是纪律和节奏\n它不需要你熬时间，但极度考验执行力：对的时候拿住强势行情，错的时候立刻离场，绝不消耗\n大家只需要跟上节奏、严守纪律、不乱操作，就能适配新的行情\n市场变，思路变，节奏变，收益才会稳！", "jump_url": "//www.bilibili.com/opus/1214705438121000969"}, "stats": {"like": 243, "comment": 80, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1214423589451726855", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1781593426", "pub_time": "06月16日", "text": "", "content": {"type": "video", "aid": "116758501395736", "bvid": "BV1TNju6UEpA", "title": "6月16简哥中线账户汇报战况！", "cover": "http://i0.hdslb.com/bfs/archive/c6b99773ea002d95e17605fcf2c4f7c3b01f7e9e.jpg", "duration": "00:12", "play": "3800", "danmaku": "0", "desc": "-"}, "stats": {"like": 94, "comment": 19, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1213984514992242693", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1781491196", "pub_time": "06月15日", "text": "", "content": {"type": "video", "aid": "116751790573546", "bvid": "BV1LRJM6TEQx", "title": "简哥中线账户今天汇报一下战况！继续格局", "cover": "http://i0.hdslb.com/bfs/archive/72260f6a2de2da2ccb448c7232c63dd9d5e8a2fe.jpg", "duration": "00:12", "play": "4365", "danmaku": "0", "desc": "-"}, "stats": {"like": 126, "comment": 21, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1212127697503780866", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1781058872", "pub_time": "06月10日", "text": "", "content": {"type": "video", "aid": "116723470567978", "bvid": "BV1neEX6vEZD", "title": "简哥中线账户战绩汇报！今天爽吃10cm大肉！", "cover": "http://i2.hdslb.com/bfs/archive/b112bbfaaf99b5d0ec8db230420d9a2e9ac8ea5c.jpg", "duration": "00:12", "play": "7615", "danmaku": "0", "desc": "-"}, "stats": {"like": 211, "comment": 109, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1212115693078577152", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1781056077", "pub_time": "06月10日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/20461cae40cb2939f3a14503b1e542483690980475668810.png", "width": 978, "height": 479}], "title": "", "summary_text": "拿不住的去打螺丝！\n", "jump_url": "//www.bilibili.com/opus/1212115693078577152"}, "stats": {"like": 84, "comment": 25, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1211811210005053457", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1780985184", "pub_time": "06月09日", "text": "", "content": {"type": "video", "aid": "116718638861090", "bvid": "BV1PWEj6qE52", "title": "简哥中线账户汇报一下战况！", "cover": "http://i1.hdslb.com/bfs/archive/40a445aec95ab6e9e55ad6c1542b35a0f9ca5046.jpg", "duration": "00:12", "play": "4440", "danmaku": "0", "desc": "-"}, "stats": {"like": 129, "comment": 35, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1210276936017772548", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1780627958", "pub_time": "06月05日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "三孚又板了，那住的兄弟报个到。\n拿不住的去进厂！", "jump_url": "//www.bilibili.com/opus/1210276936017772548"}, "stats": {"like": 102, "comment": 46, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1209916970524213250", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1780544147", "pub_time": "06月04日", "text": "", "content": {"type": "video", "aid": "116689714808544", "bvid": "BV1H97o65ExV", "title": "简哥20w全仓一只，今天小t了一手，继续格局！", "cover": "http://i1.hdslb.com/bfs/archive/af166bb01e5f92e7e5fc8ae906e273b8f9524bab.jpg", "duration": "00:12", "play": "3399", "danmaku": "0", "desc": "-"}, "stats": {"like": 96, "comment": 19, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1209532940285902889", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1780454733", "pub_time": "06月03日", "text": "", "content": {"type": "video", "aid": "116683876339521", "bvid": "BV1NQV16GE8n", "title": "简哥给大家汇报一下中线的战况！", "cover": "http://i1.hdslb.com/bfs/archive/b28d8ab39de5e2838a350be27c1423d9d12aa3e0.jpg", "duration": "00:12", "play": "4843", "danmaku": "1", "desc": "-"}, "stats": {"like": 168, "comment": 47, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1207767193317539848", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1780043613", "pub_time": "05月29日", "text": "", "content": {"type": "video", "aid": "116656915416290", "bvid": "BV1VSVh67EqH", "title": "简哥中线账户汇报一下战况：今天小盈五个点+10105继续格局静待花开！", "cover": "http://i2.hdslb.com/bfs/archive/d22f18d3b01e0d076d92cb36698af00029b568e7.jpg", "duration": "00:12", "play": "3665", "danmaku": "0", "desc": "-"}, "stats": {"like": 86, "comment": 20, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1206939677661069330", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1779850942", "pub_time": "05月27日", "text": "", "content": {"type": "video", "aid": "116644282173324", "bvid": "BV1zaGC6WE8B", "title": "简哥中线波段账户20w全仓一只，静待花开！", "cover": "http://i2.hdslb.com/bfs/archive/f2f6b1605544dca1cd4d7a07a791ed33e39e45dd.jpg", "duration": "00:12", "play": "3830", "danmaku": "0", "desc": "-"}, "stats": {"like": 100, "comment": 16, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1205162622110924822", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1779437189", "pub_time": "05月22日", "text": "", "content": {"type": "video", "aid": "116617186904687", "bvid": "BV1G7Gb6qEkg", "title": "简哥中线波段账户启动第一天，今天新开常青和三孚静待花开！策略在动态！", "cover": "http://i0.hdslb.com/bfs/archive/baa98fe911c41ddc8901c7c8d5b10454dad81116.jpg", "duration": "00:12", "play": "6790", "danmaku": "0", "desc": "-"}, "stats": {"like": 348, "comment": 78, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1205131084145098759", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1779429846", "pub_time": "05月22日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/cc154edb2cb7e265e2c77ed18c7913fa3690980475668810.png", "width": 975, "height": 478}], "title": "简哥夸周教学", "summary_text": "个人观点，自行把握！", "jump_url": "//www.bilibili.com/opus/1205131084145098759"}, "stats": {"like": 107, "comment": 30, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1204863383155769362", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1779367517", "pub_time": "05月21日", "text": "", "content": {"type": "opus", "images": [], "title": "简哥中线波段预选：", "summary_text": "三孚股份：基础化工+电子化学品+硅材料\n今天早盘冲高后回落，不过整体重心并没有明显下移，更多还是正常震荡整理\n\n盘中承接其实还算可以，空头并没有形成真正单边压制，说明场内资金情绪还算稳定，目前最大的问题还是上方浮筹没有完全消化，短期想直接加速可能比较难\n\n后续仍以震荡蓄势为主，我认为接下来大概率还是维持震荡蓄势节奏，等抛压进一步释放后，盘面重心才有机会慢慢抬高，短线节奏偏慢，不太适合追高，更适合耐心等低吸机会", "jump_url": "//www.bilibili.com/opus/1204863383155769362"}, "stats": {"like": 124, "comment": 42, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1204679863435264000", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1779324788", "pub_time": "05月21日", "text": "", "content": {"type": "opus", "images": [], "title": "", "summary_text": "大家早上好，这边中线趋势账户还没弄好，可能得明天或者下周一才开始，大家也不要着急不要催促，耐得住寂寞才能守得住繁华！@论道至简 ", "jump_url": "//www.bilibili.com/opus/1204679863435264000"}, "stats": {"like": 93, "comment": 35, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1204117519114174467", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "起飞在即_", "mid": 3706945254983823, "face": "https://i0.hdslb.com/bfs/face/d823542254614a6341e98df068203b34d03c0edd.jpg"}, "pub_ts": "1779193857", "pub_time": "05月19日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/6cae12bafdd4fa71c9781ef22b4712d63706945254983823.png", "width": 1080, "height": 1440}], "title": "", "summary_text": "明天计划早知道，只有20个名额", "jump_url": "//www.bilibili.com/opus/1204117519114174467"}, "stats": {"like": 166, "comment": 73, "forward": 1, "coin": 0}, "forward": null, "_uid": 3706945254983823}, {"id_str": "1169899772384903189", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1771226917", "pub_time": "02月16日", "text": "", "content": {"type": "video", "aid": "116079124875035", "bvid": "BV1WoZTB6Eap", "title": "大家新年好！今天大号回归了，大家都去关注一下大号，年后会在大号持续更新！艾特在下面评论区了！祝大家新年快乐，万事如意，合家欢乐！2026發發發！", "cover": "http://i1.hdslb.com/bfs/archive/5b3b8c0eabd226d4ce413087d68490f89df74bde.jpg", "duration": "00:12", "play": "2493", "danmaku": "0", "desc": "-"}, "stats": {"like": 79, "comment": 46, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1167595750062817304", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770690470", "pub_time": "02月10日", "text": "", "content": {"type": "video", "aid": "116043959765105", "bvid": "BV1ZoFmzUEWG", "title": "昨天巨力带大家精准逃顶，今天就摁了个跌停，这波实力不用我多说了吧！今天清仓了，后面几天就不更新了。大家注意好c位，及时落袋！", "cover": "http://i1.hdslb.com/bfs/archive/34e043bed725736e50f6c43cce1beef9b564f02d.jpg", "duration": "00:12", "play": "2654", "danmaku": "0", "desc": "-"}, "stats": {"like": 57, "comment": 22, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1167593362018009129", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770689914", "pub_time": "02月10日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/0c5c7efa9af078baa9e1a941773719973690980475668810.png", "width": 676, "height": 552}], "title": "大家早上好！", "summary_text": "昨天巨力带大家精准逃顶，今天早上直接跌停，这波操作怎么说家人们！\n", "jump_url": "//www.bilibili.com/opus/1167593362018009129"}, "stats": {"like": 16, "comment": 2, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1167304134631620626", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770622573", "pub_time": "02月09日", "text": "", "content": {"type": "video", "aid": "116039513801315", "bvid": "BV1uVcuzbEBw", "title": "1w挑战1000w，今天赛伍炸板了小吃一个点。今天最后做一波，明天清仓过节了，我们年后再战！最近这段时间大家注意控制好仓位，及时落袋为安！", "cover": "http://i2.hdslb.com/bfs/archive/2b518f41a258bcbe7f69f0d5e90d58a3b5c31ab0.jpg", "duration": "00:12", "play": "1446", "danmaku": "0", "desc": "-"}, "stats": {"like": 37, "comment": 20, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1167216500141981699", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770602169", "pub_time": "02月09日", "text": "", "content": {"type": "video", "aid": "116038171623856", "bvid": "BV1JCcPzYEdi", "title": "从不马后炮！1w挑战1000w记录✍️，上周五发的赛伍夸周大牛骨，今天如期而至上板板！吃肉吃肉！", "cover": "http://i1.hdslb.com/bfs/archive/d2bc369cbb40a5ddd5b0e52f51eb47b541c3493e.jpg", "duration": "00:12", "play": "1204", "danmaku": "1", "desc": "-"}, "stats": {"like": 37, "comment": 28, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1166189234142314505", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770362990", "pub_time": "02月06日", "text": "", "content": {"type": "video", "aid": "116022501705820", "bvid": "BV1FrFrziEnT", "title": "1w实盘挑战记录✍️，今天协鑫水下五个点上板，又成功卖飞！横店尾盘炸板今天小吃一点，愉快过周末！", "cover": "http://i1.hdslb.com/bfs/archive/f1445754f2f9edfd1f43918b128fff061749bb4c.jpg", "duration": "00:12", "play": "1136", "danmaku": "1", "desc": "-"}, "stats": {"like": 38, "comment": 10, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1166100323999154183", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770342289", "pub_time": "02月06日", "text": "", "content": {"type": "video", "aid": "116021142816648", "bvid": "BV1P3F6zMEkk", "title": "1w挑战1000w记录✍️，今天起飞爽吃两个板板！", "cover": "http://i2.hdslb.com/bfs/archive/a5ad665101196ef1271d196951a03690d81fcd27.jpg", "duration": "00:12", "play": "1189", "danmaku": "0", "desc": "-"}, "stats": {"like": 33, "comment": 22, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1165823702391062537", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770277883", "pub_time": "02月05日", "text": "", "content": {"type": "video", "aid": "116016915088621", "bvid": "BV11oFYzWE6r", "title": "1w挑战冲1000w，今天航发又是冲高回落尾盘-1.54收，但他的趋势还是在的只要不破五日线就坚定看好！静待花开！", "cover": "http://i0.hdslb.com/bfs/archive/7aaec4fb7cb0b49a342af24d974c4306047bbe5d.jpg", "duration": "00:12", "play": "861", "danmaku": "0", "desc": "-"}, "stats": {"like": 37, "comment": 15, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1165735904632897544", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770257441", "pub_time": "02月05日", "text": "", "content": {"type": "video", "aid": "116015589490952", "bvid": "BV1rMFwzRENu", "title": "1w实盘挑战记录✍️，今天航发走了一半，新开了协鑫小吃两个点，航发今天如果die破五日线就得止笋了！", "cover": "http://i0.hdslb.com/bfs/archive/89ea8040603d356cd5f4950c769be0a49a043be3.jpg", "duration": "00:12", "play": "899", "danmaku": "0", "desc": "-"}, "stats": {"like": 34, "comment": 17, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1165448034476097539", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770190416", "pub_time": "02月04日", "text": "", "content": {"type": "video", "aid": "116011193861188", "bvid": "BV1R4fRBbEDD", "title": "1w挑战1000w记录✍️，今天航发有点让我失望了，但是不要着急目前是企稳的状态，静待花开！", "cover": "http://i0.hdslb.com/bfs/archive/5518b84e7bba521cdb5680837fb6593af5cd1626.jpg", "duration": "00:12", "play": "1019", "danmaku": "0", "desc": "-"}, "stats": {"like": 44, "comment": 28, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1165359661203849236", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770169840", "pub_time": "02月04日", "text": "", "content": {"type": "video", "aid": "116009834906087", "bvid": "BV1YMf9BXESq", "title": "1w实盘挑战记录✍️，保变冲高走掉了，全仓进了航发，静待花开！", "cover": "http://i0.hdslb.com/bfs/archive/5eef4b1b5a10b0713e0f190565933d3521015a58.jpg", "duration": "00:12", "play": "965", "danmaku": "0", "desc": "-"}, "stats": {"like": 41, "comment": 6, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1165071992915755031", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770102862", "pub_time": "02月03日", "text": "", "content": {"type": "video", "aid": "116005456054852", "bvid": "BV1f9FVzXEuf", "title": "今天大盘探底回升，反弹启动！今天航发企稳准备起飞！", "cover": "http://i0.hdslb.com/bfs/archive/a295ee43e191e1fbb2e9ad63475d49bb91f833ef.jpg", "duration": "00:12", "play": "778", "danmaku": "0", "desc": "-"}, "stats": {"like": 58, "comment": 27, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1165003264802947073", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770086860", "pub_time": "02月03日", "text": "", "content": {"type": "video", "aid": "116004399089601", "bvid": "BV1m5FGzhE3n", "title": "1w实盘挑战记录✍️，今天西电回落后反包走掉了，目前新开了一半保变dq，大家尽量不要跟我追高！静待花开！", "cover": "http://i2.hdslb.com/bfs/archive/2eccbd2dc8afa549c1f626b4c547dd53a0730fdf.jpg", "duration": "00:12", "play": "848", "danmaku": "0", "desc": "-"}, "stats": {"like": 38, "comment": 29, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1164733386237935636", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1770024024", "pub_time": "02月02日", "text": "", "content": {"type": "video", "aid": "116000288672555", "bvid": "BV19SFNzWEGS", "title": "1w实盘挑战记录✍️，今天新开西电可惜炸板了没封住，小吃2个点咯！", "cover": "http://i0.hdslb.com/bfs/archive/5c69c1d6ee6a9129e8eed59262e523b18a503b7d.jpg", "duration": "00:12", "play": "637", "danmaku": "0", "desc": "-"}, "stats": {"like": 40, "comment": 8, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1164624418630008833", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769998653", "pub_time": "02月02日", "text": "", "content": {"type": "video", "aid": "115998627725603", "bvid": "BV1LNFNzsE84", "title": "1w实盘挑战记录✍️，洲际今天被摁死了，还好早有预测只干了两手，今天新开西电！", "cover": "http://i2.hdslb.com/bfs/archive/ffa859f590beb8e988ef971265c2c14f867a8156.jpg", "duration": "00:12", "play": "1045", "danmaku": "0", "desc": "-"}, "stats": {"like": 45, "comment": 30, "forward": 6, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1163655766094118948", "type": "DYNAMIC_TYPE_ARTICLE", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769773121", "pub_time": "01月30日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/5e8e24d3a84152ac28e437f1ea6f7e8d3690980475668810.png", "width": 2184, "height": 1228}], "title": "今天晚上跟大家讲讲我的心法：", "summary_text": "90%人的最终宿命，就是被市场打败，成为市场中的炮灰，这是一个残酷的逃无可逃的定律。\n能够改变这个宿命的只有你本人。\n世界上没有救世主，你就是你自己的救世主。\n一个有趣的事实是，进入市场的人，每个人都认为自己必定会成为那幸运的1%。但事实是残酷的。 \n一、炒股绝不借钱或用有期限的资金\n借钱炒股无疑是等于借刀自杀，人可以自嘲，但决不能自杀。目前市场上没有任何理论可以在资金面有时间限制的情况下保你稳健获利。 \n二、不盲目顺从趋势\n...", "jump_url": "//www.bilibili.com/opus/1163655766094118948"}, "stats": {"like": 45, "comment": 11, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1163616411317174320", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769763958", "pub_time": "01月30日", "text": "", "content": {"type": "video", "aid": "115983243084071", "bvid": "BV1WA6vBzEfd", "title": "1w实盘挑战记录✍️，早上发动态说了今天多看少做，空仓为主，还是忍不住干了两手洲际，小小吃个面😅！", "cover": "http://i1.hdslb.com/bfs/archive/26ecba07d313cf520e0d3983faab07a3e2aae8ff.jpg", "duration": "00:12", "play": "809", "danmaku": "0", "desc": "-"}, "stats": {"like": 43, "comment": 24, "forward": 2, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1163242229435727912", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769676837", "pub_time": "01月29日", "text": "", "content": {"type": "video", "aid": "115977522053533", "bvid": "BV1ay6FB9Eyb", "title": "1w实盘挑战记录，状态回归准备起飞！好马不吃回头草，今天不该回巨力的，后面错过了好多好标！", "cover": "http://i2.hdslb.com/bfs/archive/097e1bb777d87b639060ecb3d0c9597cd6239ff0.jpg", "duration": "00:52", "play": "798", "danmaku": "0", "desc": "-"}, "stats": {"like": 64, "comment": 36, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1163140653500071958", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769653187", "pub_time": "01月29日", "text": "", "content": {"type": "video", "aid": "115975978485392", "bvid": "BV1DszfBmEpt", "title": "1w实盘挑战记录✍️，走掉了烽火和华天，又回去了巨力，静待花开！", "cover": "http://i1.hdslb.com/bfs/archive/d43bfb57860c58fa4f8230ecaf1131bcd367b92f.jpg", "duration": "00:12", "play": "1190", "danmaku": "0", "desc": "-"}, "stats": {"like": 53, "comment": 47, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1162781757401989121", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769569625", "pub_time": "01月28日", "text": "", "content": {"type": "video", "aid": "115970509113635", "bvid": "BV1bi65BxE4G", "title": "巨力割肉，今天新开烽火和华天，静待花开！", "cover": "http://i2.hdslb.com/bfs/archive/60ba54572766bde1af088faa6fa898cbf751fc15.jpg", "duration": "00:12", "play": "873", "danmaku": "0", "desc": "-"}, "stats": {"like": 48, "comment": 63, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1162486371056615431", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769500850", "pub_time": "01月27日", "text": "", "content": {"type": "opus", "images": [], "title": "翻篇", "summary_text": "人做的事，不可能一直正确，要强推后从新开始，正如铅笔的另一头是橡皮。", "jump_url": "//www.bilibili.com/opus/1162486371056615431"}, "stats": {"like": 46, "comment": 41, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1162472919229530183", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769497718", "pub_time": "01月27日", "text": "", "content": {"type": "video", "aid": "115965794715245", "bvid": "BV1Y76MB5E3Z", "title": "巨力小跑车坐稳扶好，准备起飞！", "cover": "http://i0.hdslb.com/bfs/archive/224e690a12daf9ff78616658307060735f59ddfe.jpg", "duration": "00:12", "play": "1304", "danmaku": "0", "desc": "-"}, "stats": {"like": 69, "comment": 96, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1162392916860076036", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769479091", "pub_time": "01月27日", "text": "", "content": {"type": "video", "aid": "115964570044306", "bvid": "BV1EW6TBHEQH", "title": "【论道至简】我的最新作品，快来一睹为快！", "cover": "http://i1.hdslb.com/bfs/archive/d0151ac6efdd512e24b1b397effdef4acc4ed930.jpg", "duration": "00:12", "play": "1410", "danmaku": "0", "desc": "-"}, "stats": {"like": 61, "comment": 29, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1162103032320622616", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769411597", "pub_time": "01月26日", "text": "", "content": {"type": "video", "aid": "115960140793893", "bvid": "BV1RtzYBSEdh", "title": "1w块钱吃肉挑战第35天，今天z了一碗猪脚饭收碗！以后金风这块五花肉再也不吃了！", "cover": "http://i0.hdslb.com/bfs/archive/87781120a3cb995c12bec740860efd6b19434b22.jpg", "duration": "00:12", "play": "663", "danmaku": "0", "desc": "-"}, "stats": {"like": 51, "comment": 25, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1162018365600956417", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769391884", "pub_time": "01月26日", "text": "", "content": {"type": "video", "aid": "115958865724930", "bvid": "BV1eMzaByECx", "title": "1w块钱吃肉挑战第35天，今天一重这块肉消化掉了，新买了金风这块五花肉，上次在金风这块肉上面吃吐了，今天在吃回来！", "cover": "http://i0.hdslb.com/bfs/archive/aad5f2ff9d40779a84eb3ad5919ebfae6cde6a84.jpg", "duration": "00:12", "play": "1341", "danmaku": "0", "desc": "-"}, "stats": {"like": 59, "comment": 47, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1160997847062020113", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769154276", "pub_time": "01月23日", "text": "", "content": {"type": "video", "aid": "115943279691452", "bvid": "BV1DUzNBaEsy", "title": "1w块钱吃肉挑战，今天西电这块五花肉已经消化掉了，一重这个肥肉一次性吃完有点腻不着急留着下周在吃吧！", "cover": "http://i2.hdslb.com/bfs/archive/5dfdc01877194354fa19f61cab8133cfe14616cb.jpg", "duration": "00:12", "play": "1220", "danmaku": "1", "desc": "-"}, "stats": {"like": 79, "comment": 53, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1160908391448576004", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769133448", "pub_time": "01月23日", "text": "", "content": {"type": "video", "aid": "115941920737151", "bvid": "BV1b8zPBdEMq", "title": "1w吃肉挑战，昨天吸的西电今天肉熟了，今天新吃了个zg一重静待肉熟！", "cover": "http://i2.hdslb.com/bfs/archive/312e3f9a9ea84fc15087a675fe3f4ab6852b8b7a.jpg", "duration": "00:12", "play": "1353", "danmaku": "0", "desc": "-"}, "stats": {"like": 67, "comment": 49, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1160620693050621956", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769066463", "pub_time": "01月22日", "text": "", "content": {"type": "video", "aid": "115937525108665", "bvid": "BV1BUzsBPELZ", "title": "1w块钱吃肉挑战，今天的肉就先不吃了，放在明天一起吃吧！", "cover": "http://i1.hdslb.com/bfs/archive/fa21a68c8b6917517554829554787e3f32f7ff21.jpg", "duration": "00:12", "play": "1195", "danmaku": "0", "desc": "-"}, "stats": {"like": 78, "comment": 52, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1160549538368323591", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1769049896", "pub_time": "01月22日", "text": "", "content": {"type": "video", "aid": "115936451364895", "bvid": "BV1xgzWB3EnF", "title": "1w吃肉挑战，今天早上走掉了盈新没吃到还吐了一点，新吃了西电这个五花肉，看看味道怎么样！", "cover": "http://i1.hdslb.com/bfs/archive/3310ae929a42e300f2a90b88d5f5415e489090eb.jpg", "duration": "00:12", "play": "1301", "danmaku": "0", "desc": "-"}, "stats": {"like": 76, "comment": 46, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1160246945056292884", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1768979443", "pub_time": "01月21日", "text": "", "content": {"type": "video", "aid": "115931820851423", "bvid": "BV1oQzVBaEEb", "title": "1w挑战吃面条记录，今天有点饿了暂时吃碗小面吧！", "cover": "http://i0.hdslb.com/bfs/archive/ba3b963c28e9e029355407fa0fe0bfb794831817.jpg", "duration": "00:12", "play": "1280", "danmaku": "0", "desc": "-"}, "stats": {"like": 89, "comment": 67, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1160165237553364998", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1768960419", "pub_time": "01月21日", "text": "", "content": {"type": "video", "aid": "115930579338907", "bvid": "BV1QZz3BSEJg", "title": "九丰飞了，新开盈新静待花开！", "cover": "http://i2.hdslb.com/bfs/archive/cb3084f3a9f5549dd5006a2b2b1c21c49d2ea3bd.jpg", "duration": "00:12", "play": "1564", "danmaku": "1", "desc": "-"}, "stats": {"like": 87, "comment": 69, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1159874983651966999", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1768892839", "pub_time": "01月20日", "text": "", "content": {"type": "video", "aid": "115926150219855", "bvid": "BV17LkLB2Efm", "title": "今天回血151下班！", "cover": "http://i0.hdslb.com/bfs/archive/b28da09fdb01a376b36911249c4350e2a3ba4455.jpg", "duration": "00:12", "play": "1352", "danmaku": "0", "desc": "-"}, "stats": {"like": 95, "comment": 60, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1159796622023983108", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1768874594", "pub_time": "01月20日", "text": "", "content": {"type": "video", "aid": "115924925416647", "bvid": "BV1D4kVB8E1Z", "title": "第32天，新开九丰ny，进点稳健的带大家回口血！", "cover": "http://i0.hdslb.com/bfs/archive/5b15a30f32b33ba89622f7107d02c0ef50a98184.jpg", "duration": "00:12", "play": "967", "danmaku": "0", "desc": "-"}, "stats": {"like": 59, "comment": 43, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1159504555663163444", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1768806592", "pub_time": "01月19日", "text": "", "content": {"type": "video", "aid": "115920496234374", "bvid": "BV1wrkeBrEiT", "title": "1w全部第31天，今天新进的zgwx回来一碗猪脚饭，后续给他留个底c不动了。", "cover": "http://i0.hdslb.com/bfs/archive/096c52bc4461e7da9bc9e01082c62cd7e3d53a2a.jpg", "duration": "00:12", "play": "1043", "danmaku": "0", "desc": "-"}, "stats": {"like": 93, "comment": 35, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1159427834604683280", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1768788729", "pub_time": "01月19日", "text": "", "content": {"type": "video", "aid": "115919321826507", "bvid": "BV1R9kaB9EVC", "title": "1w开始实盘第31天，早上冲高走了机电，新开卫星，静待花开！", "cover": "http://i2.hdslb.com/bfs/archive/d7ffb7283a7da4b6b57116c8e4f9a63c35b256b4.jpg", "duration": "00:12", "play": "1020", "danmaku": "0", "desc": "-"}, "stats": {"like": 41, "comment": 13, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1158391020949340168", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1768547327", "pub_time": "01月16日", "text": "", "content": {"type": "video", "aid": "115903500977360", "bvid": "BV1ndkKBtEp6", "title": "1w实盘挑战第30天，又是大面一碗。周末调整好心态，下周从头再来，这周损失的下周一定会翻倍拿回来！", "cover": "http://i2.hdslb.com/bfs/archive/7ec71040ca19dd11cd9505a79c64425249bc044d.jpg", "duration": "00:12", "play": "2747", "danmaku": "0", "desc": "-"}, "stats": {"like": 95, "comment": 101, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1158309197501169670", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1768528276", "pub_time": "01月16日", "text": "", "content": {"type": "video", "aid": "115902259463820", "bvid": "BV1QQkNB3ECJ", "title": "1w是看挑战第30天，昨晚挂单走掉了金凤，新开的航天jd博弈一手！别人恐惧我贪婪！", "cover": "http://i0.hdslb.com/bfs/archive/97d8a85bdea165b53f161f819d9720357ff7a401.jpg", "duration": "00:12", "play": "2568", "danmaku": "1", "desc": "-"}, "stats": {"like": 49, "comment": 48, "forward": 2, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1158084094007967760", "type": "DYNAMIC_TYPE_DRAW", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1768475865", "pub_time": "01月15日", "text": "", "content": {"type": "opus", "images": [{"src": "http://i0.hdslb.com/bfs/new_dyn/57ba1c75bb080131066e84cf5e0edb0f3690980475668810.png", "width": 749, "height": 1278}, {"src": "http://i0.hdslb.com/bfs/new_dyn/595d31174fcd6fb9e4babc3566c33ba03690980475668810.png", "width": 749, "height": 579}], "title": "", "summary_text": "大家晚上好！今天下午论道至简大号出了点小问题，要一个月以后才能见面了，各位家人朋友们以后就看这里跟上就好了，新号大家三连支持一下，把热度搞起来！", "jump_url": "//www.bilibili.com/opus/1158084094007967760"}, "stats": {"like": 12, "comment": 5, "forward": 0, "coin": 0}, "forward": null, "_uid": 3690980475668810}, {"id_str": "1158080374566289459", "type": "DYNAMIC_TYPE_AV", "author": {"name": "无敌の简", "mid": 3690980475668810, "face": "https://i2.hdslb.com/bfs/face/8c592220578646d65de89509d210e9eb734d454a.jpg"}, "pub_ts": "1768474999", "pub_time": "01月15日", "text": "", "content": {"type": "video", "aid": "115898769801325", "bvid": "BV1AHkcBjEEK", "title": "大家晚上好！你们的简哥又回来了，今天吃了碗面把号都吃没了，大家后面关注这个号，会持续在这里更新，三连走起来，我看看还有多少人支持我的！", "cover": "http://i1.hdslb.com/bfs/archive/d0a6b2668276a356ee350f5f54a782d9d7dbf0e6.jpg", "duration": "00:12", "play": "2472", "danmaku": "1", "desc": "-"}, "stats": {"like": 92, "comment": 61, "forward": 1, "coin": 0}, "forward": null, "_uid": 3690980475668810}];
+
+// ============================================================
+// STATE
+// ============================================================
+let activeAuthor = null;  // null = all
+let activeType = 'all';   // 'all' | 'opus' | 'video'
+
+// ============================================================
+// DERIVED DATA
+// ============================================================
+const authorsMap = {};
+DATA.forEach(item => {
+  const uid = item._uid;
+  if (!authorsMap[uid]) {
+    authorsMap[uid] = {
+      uid,
+      name: item.author.name,
+      face: item.author.face,
+      count: 0,
+      totalLikes: 0,
+      color: '',
+      glow: '',
+    };
+  }
+  authorsMap[uid].count++;
+  authorsMap[uid].totalLikes += item.stats.like;
+});
+
+const COLORS = [
+  { color: '#fb7299', glow: 'rgba(251,114,153,0.35)' },
+  { color: '#23d5e8', glow: 'rgba(35,213,232,0.35)' },
+  { color: '#f5a623', glow: 'rgba(245,166,35,0.35)' },
+  { color: '#a78bfa', glow: 'rgba(167,139,250,0.35)' },
+];
+const authorList = Object.values(authorsMap);
+authorList.forEach((a, i) => {
+  a.color = COLORS[i].color;
+  a.glow = COLORS[i].glow;
+});
+
+const totalDynamics = DATA.length;
+const totalLikes = DATA.reduce((s, i) => s + i.stats.like, 0);
+const totalComments = DATA.reduce((s, i) => s + i.stats.comment, 0);
+
+// ============================================================
+// RENDER: Stats strip
+// ============================================================
+function renderStats() {
+  document.getElementById('statsStrip').innerHTML = `
+    <div class="stat-item">
+      <div class="stat-value">${totalDynamics}</div>
+      <div class="stat-label">Total Posts</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">${authorList.length}</div>
+      <div class="stat-label">Authors</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">${(totalLikes / 1000).toFixed(1)}k</div>
+      <div class="stat-label">Total Likes</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">${(totalComments / 1000).toFixed(1)}k</div>
+      <div class="stat-label">Comments</div>
+    </div>
+  `;
+}
+
+// ============================================================
+// RENDER: Author bar
+// ============================================================
+function renderAuthorBar() {
+  const bar = document.getElementById('authorBar');
+
+  // "All" chip
+  const isAllActive = activeAuthor === null;
+  bar.innerHTML = `
+    <div class="author-chip ${isAllActive ? 'active' : ''}"
+         style="--chip-color: #fff; --chip-glow: rgba(255,255,255,0.25)"
+         data-uid="">
+      <div class="avatar" style="background:var(--bg-panel);display:flex;align-items:center;justify-content:center;font-size:16px;">👥</div>
+      <div class="info">
+        <span class="name">全部博主</span>
+        <span class="count">${totalDynamics} 条</span>
+      </div>
+      ${isAllActive ? '<div class="dot" style="--chip-color:#fff;--chip-glow:rgba(255,255,255,0.4)"></div>' : ''}
+    </div>
+  `;
+
+  // Individual author chips
+  authorList.forEach(a => {
+    const active = activeAuthor === a.uid;
+    bar.innerHTML += `
+      <div class="author-chip ${active ? 'active' : ''}"
+           style="--chip-color: ${a.color}; --chip-glow: ${a.glow}"
+           data-uid="${a.uid}">
+        <img class="avatar" src="${a.face}" alt="${a.name}" loading="lazy"
+             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%2313161d%22 width=%2240%22 height=%2240%22 rx=%2220%22/><text fill=%22%238b8d93%22 x=%2220%22 y=%2226%22 text-anchor=%22middle%22 font-size=%2216%22>${a.name[0]}</text></svg>'">
+        <div class="info">
+          <span class="name">${a.name}</span>
+          <span class="count">${a.count} 条 · 👍 ${a.totalLikes}</span>
+        </div>
+        ${active ? `<div class="dot" style="--chip-color:${a.color};--chip-glow:${a.glow}"></div>` : ''}
+      </div>
+    `;
+  });
+
+  // Click handlers
+  bar.querySelectorAll('.author-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const uid = chip.dataset.uid;
+      activeAuthor = uid ? parseInt(uid) : null;
+      renderAuthorBar();
+      renderTimeline();
+    });
+  });
+}
+
+// ============================================================
+// RENDER: Timeline
+// ============================================================
+function renderTimeline() {
+  const container = document.getElementById('timeline');
+  const filtered = DATA.filter(item => {
+    if (activeAuthor !== null && item._uid !== activeAuthor) return false;
+    if (activeType !== 'all' && item.content.type !== activeType) return false;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">📭</div>
+        <div class="msg">没有匹配的动态</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map((item, i) => {
+    const author = authorsMap[item._uid];
+    const accent = author ? author.color : '#fb7299';
+    const typeLabel = item.content.type === 'video' ? '视频' : '图文';
+    const badgeClass = item.content.type === 'video' ? 'badge-video' : 'badge-opus';
+
+    // Body text
+    let bodyText = '';
+    if (item.content.type === 'video') {
+      bodyText = item.content.title || item.text || '';
+    } else {
+      bodyText = item.content.summary_text || item.text || '';
+    }
+    const isLong = bodyText.length > 200;
+    const bodyId = `body-${i}`;
+
+    // Video link
+    let videoLink = '';
+    if (item.content.type === 'video' && item.content.bvid) {
+      videoLink = `
+        <a class="card-video-link" href="https://www.bilibili.com/video/${item.content.bvid}" target="_blank" rel="noopener">
+          ▶ BV${item.content.bvid}
+          ${item.content.play ? `<span class="play-count">▶ ${item.content.play}</span>` : ''}
+          ${item.content.duration ? `<span>${item.content.duration}</span>` : ''}
+        </a>`;
+    }
+
+    // Opus link
+    let opusLink = '';
+    if (item.content.type === 'opus' && item.id_str) {
+      opusLink = `
+        <a class="card-video-link" style="border-color:rgba(35,213,232,0.2);background:rgba(35,213,232,0.06);color:var(--accent-cyan)"
+           href="https://www.bilibili.com/opus/${item.id_str}" target="_blank" rel="noopener">
+          🔗 查看原文
+        </a>`;
+    }
+
+    // Expand button for long text
+    const expandBtn = isLong
+      ? `<span class="card-expand" onclick="toggleBody('${bodyId}', this)">展开全文 ↓</span>`
+      : '';
+
+    return `
+      <div class="card" style="--card-accent: ${accent}; animation-delay: ${Math.min(i * 0.02, 0.5)}s">
+        <div class="card-header">
+          <img class="card-avatar" src="${item.author.face}" alt="${item.author.name}" loading="lazy"
+               onerror="this.style.display='none'">
+          <span class="card-author">${item.author.name}</span>
+          <span class="card-type-badge ${badgeClass}">${typeLabel}</span>
+          <span class="card-time">${item.pub_time}</span>
+        </div>
+        <div class="card-body" id="${bodyId}">${escapeHtml(bodyText)}</div>
+        ${expandBtn}
+        ${videoLink}
+        ${opusLink}
+        <div class="card-footer">
+          <span class="stat-badge like">❤ <span class="val">${item.stats.like}</span></span>
+          <span class="stat-badge comment">💬 <span class="val">${item.stats.comment}</span></span>
+          <span class="stat-badge forward">🔄 <span class="val">${item.stats.forward}</span></span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function toggleBody(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const expanded = el.classList.toggle('expanded');
+  btn.textContent = expanded ? '收起 ↑' : '展开全文 ↓';
+}
+
+// ============================================================
+// FILTER BUTTONS
+// ============================================================
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeType = btn.dataset.type;
+    renderTimeline();
+  });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+renderStats();
+renderAuthorBar();
+renderTimeline();
+</script>
+</body>
+</html>

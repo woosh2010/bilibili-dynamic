@@ -212,19 +212,21 @@ class DynamicsFetcher:
         每次重试重新签名（刷新 wts/w_rid）并退避。"""
         base_params: Dict[str, Any] = {
             "host_mid": uid,
-            "offset": offset,
             "timezone_offset": -480,
             "platform": "web",
             "features": "itemOpusStyle,listOnlyfans,opusBigCover,onlyfansVote,"
                         "onlyfansReplyV2,decorationCard,onlyfansEmojiNew",
             "web_location": "333.1387",
         }
+        # 首頁不传 offset=""，否则 API 返回 0 条数据
+        if offset:
+            base_params["offset"] = offset
 
         last_err: Optional[str] = None
         for attempt in range(1, self.max_retries + 1):
             # 每次重试重新签名，刷新 wts/w_rid。
             params = self.signer.sign(base_params)
-            url = f"{FEED_SPACE_URL}?{urllib.parse.urlencode(params)}"
+            url = f"{FEED_SPACE_URL}?{urllib.parse.urlencode(params, quote_via=urllib.parse.quote)}"
             self._throttle()
             try:
                 resp = self.session.get(

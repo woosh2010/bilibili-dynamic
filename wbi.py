@@ -22,10 +22,10 @@ import requests
 
 # 写死的混淆表（bilibili 前端 wbi.js 中的常量）。
 MIXIN_KEY_ENC_TABS = [
-    46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35,
-    27, 43, 5, 49, 33, 9, 54, 13, 63, 7, 55, 26, 29, 41, 0, 30,
-    1, 48, 11, 51, 25, 56, 17, 20, 44, 61, 37, 14, 12, 52, 16, 38,
-    40, 60, 6, 59, 21, 39, 28, 24, 57, 42, 22, 34, 62, 19, 4, 61,
+    46, 47, 18, 2,  53, 8,  23, 32, 15, 50, 10, 31, 58, 3,  45, 35,
+    27, 43, 5,  49, 33, 9,  42, 19, 29, 28, 14, 39, 12, 38, 41, 13,
+    37, 48, 7,  16, 24, 55, 40, 61, 26, 17, 0,  1,  60, 51, 30, 4,
+    22, 25, 54, 21, 56, 59, 6,  63, 57, 62, 11, 36, 20, 34, 44, 52,
 ]
 
 NAV_URL = "https://api.bilibili.com/x/web-interface/nav"
@@ -50,13 +50,17 @@ def split_wbi_keys(img_url: str, sub_url: str) -> Tuple[str, str]:
 
 
 def sign_wbi(params: Dict[str, Any], img_key: str, sub_key: str) -> Dict[str, Any]:
-    """对 params 计算 wbi 签名，返回带 wts/w_rid 的新 dict。"""
+    """对 params 计算 wbi 签名，返回带 wts/w_rid 的新 dict。
+
+    注意: 必须用 quote（%20 编码空格）而非 quote_plus（+ 编码空格），
+    与 B站前端的 encodeURIComponent 行为一致，否则含空格的参数会导致 -352。
+    """
     mixin_key = get_mixin_key(img_key + sub_key)
     signed = dict(params)
     signed["wts"] = round(time.time())
     # 按 key 字典序排序，值剔除伪字符。
     ordered = {k: _filter_pseudo(str(v)) for k, v in sorted(signed.items())}
-    query = urllib.parse.urlencode(ordered)
+    query = urllib.parse.urlencode(ordered, quote_via=urllib.parse.quote)
     w_rid = hashlib.md5((query + mixin_key).encode("utf-8")).hexdigest()
     ordered["w_rid"] = w_rid
     return ordered
