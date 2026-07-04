@@ -42,18 +42,21 @@ function render(){
   const grid = document.getElementById('grid');
   grid.innerHTML = MODULES.map(m=>{
     const isService = m.type==='service';
+	    const isView = m.type==='view';
     const running = m.running;
-    const btn = isService
+    const btn = isView
+	      ? `<a href="${m.url}" target="_blank"><button class="start" style="background:#1a3a5c;border-color:#2a5a8c">👁 打开</button></a>`
+	      : isService
       ? (running
           ? `<button class="stop" onclick="act('${m.id}','stop')">⏹ 停止</button>`
           : `<button class="start" onclick="act('${m.id}','start')">▶ 启动</button>`)
       : `<button class="start" onclick="act('${m.id}','start')">▶ 运行</button>`;
     const link = m.port ? `<a class="link" href="http://localhost:${m.port}" target="_blank">打开 ↗</a>` : '';
     return `<div class="card">
-      <div class="name"><span class="dot ${running?'on':''}"></span>${m.name}${isService?'<span class="badge">服务</span>':'<span class="badge">一次性</span>'}</div>
+      <div class="name"><span class="dot ${running?'on':''}"></span>${m.name}${isView?'<span class="badge">面板</span>':isService?'<span class="badge">服务</span>':'<span class="badge">一次性</span>'}</div>
       <div class="desc">${m.desc}</div>
       <div class="actions">${btn}${link}</div>
-      <div class="status ${running?'run':''}">${running?'🟢 运行中 (PID '+m.pid+')':'⚪ 未运行'}</div>
+      <div class="status ${running?'run':''}">${isView?'📊 离线可用':running?'🟢 运行中 (PID '+m.pid+')':'⚪ 未运行'}</div>
     </div>`;
   }).join('');
 }
