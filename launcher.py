@@ -187,6 +187,15 @@ class H(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode())
 
+    # 强制 UTF-8，解决 JS/HTML 中文乱码
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".js": "text/javascript; charset=utf-8",
+        ".html": "text/html; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+        ".json": "application/json; charset=utf-8",
+    }
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-cache")
         super().end_headers()
