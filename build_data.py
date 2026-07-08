@@ -7,14 +7,20 @@
   python3 build_data.py --pages 5    # 每人最多5页
 """
 
-import json, sys, time
+import json
+import sys
+from datetime import datetime
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent
 OUT_FILE = PROJECT_DIR / "out" / "timeline.js"
 
 from fetch_dynamics import DynamicsFetcher, resolve_cookie, _dynamic_text, TYPE_LABELS
-from up_manager import resolve_uids
+from up_manager import load_ups, resolve_uids
+
+
+def _now() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def parse_item(item: dict, uid: int) -> dict:
@@ -86,7 +92,11 @@ def parse_item(item: dict, uid: int) -> dict:
 def main():
     pages = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[1] == "--pages" else 10
     cookie = resolve_cookie(None)
-    uids = resolve_uids()
+    ups = load_ups()
+    uids = [str(u.get("uid", "")).strip() for u in ups if str(u.get("uid", "")).strip()]
+    if not uids:
+        uids = resolve_uids()
+    names = {str(u.get("uid", "")).strip(): str(u.get("name", "")).strip() for u in ups}
 
     if not uids:
         print("未配置 BILI_UIDS", file=sys.stderr)
@@ -94,6 +104,7 @@ def main():
 
     fetcher = DynamicsFetcher(cookie, min_interval=1.5, jitter=1.0)
     all_items = []
+    refresh_status = {}
 
     for i, uid in enumerate(uids, 1):
         print(f"[{i}/{len(uids)}] 拉取 UID={uid} ...", file=sys.stderr)
@@ -101,9 +112,26 @@ def main():
             raw = fetcher.fetch_all(uid, max_pages=pages)
         except RuntimeError as e:
             print(f"  ✗ 失败: {e}", file=sys.stderr)
+            refresh_status[str(uid)] = {
+                "uid": str(uid),
+                "name": names.get(str(uid), str(uid)),
+                "last_refresh_at": _now(),
+                "ok": False,
+                "count": 0,
+                "error": str(e)[:200],
+            }
             continue
         parsed = [parse_item(it, int(uid)) for it in raw]
         all_items.extend(parsed)
+        display_name = parsed[0]["author"]["name"] if parsed else names.get(str(uid), str(uid))
+        refresh_status[str(uid)] = {
+            "uid": str(uid),
+            "name": display_name,
+            "last_refresh_at": _now(),
+            "ok": True,
+            "count": len(parsed),
+            "error": "",
+        }
         print(f"  ✓ {len(parsed)} 条", file=sys.stderr)
 
     # 按时间倒序
@@ -111,7 +139,14 @@ def main():
 
     # 写入 JS 文件
     OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    js_content = "var TIMELINE_DATA = " + json.dumps(all_items, ensure_ascii=False) + ";"
+    meta = {
+        "generated_at": _now(),
+        "refresh_status": refresh_status,
+    }
+    js_content = (
+        "var TIMELINE_DATA = " + json.dumps(all_items, ensure_ascii=False) + ";\n"
+        "var TIMELINE_META = " + json.dumps(meta, ensure_ascii=False) + ";\n"
+    )
     OUT_FILE.write_text(js_content, encoding="utf-8")
 
     print(f"\n✓ 已写入 {OUT_FILE} ({len(all_items)} 条动态, {OUT_FILE.stat().st_size:,} bytes)", file=sys.stderr)

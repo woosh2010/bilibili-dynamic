@@ -24,6 +24,7 @@
   button:disabled{opacity:.4;cursor:not-allowed}
   .status{font-size:11px;color:var(--muted);margin-top:8px}
   .status.run{color:var(--green)}
+  .status.warn{color:var(--gold)}
   .badge{font-size:10px;padding:2px 6px;border-radius:4px;background:#21262d;color:var(--muted);margin-left:auto}
   a.link{color:var(--blue);text-decoration:none;font-size:12px}
   .log{margin-top:14px;background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:10px;font-family:monospace;font-size:11px;max-height:160px;overflow:auto;white-space:pre-wrap;color:var(--muted);display:none}
@@ -37,6 +38,13 @@
 
 <script>
 let MODULES = [];
+let TIMELINE = null;
+
+function fmtInterval(seconds){
+  seconds = Number(seconds || 0);
+  if(!seconds) return '';
+  return seconds % 60 === 0 ? (seconds / 60) + '分钟' : seconds + '秒';
+}
 
 function render(){
   const grid = document.getElementById('grid');
@@ -52,19 +60,26 @@ function render(){
           : `<button class="start" onclick="act('${m.id}','start')">▶ 启动</button>`)
       : `<button class="start" onclick="act('${m.id}','start')">▶ 运行</button>`;
     const link = m.port ? `<a class="link" href="http://localhost:${m.port}" target="_blank">打开 ↗</a>` : '';
+    const viewStatus = TIMELINE
+      ? `🟢 自动刷新中 · ${TIMELINE.count||0}条 · 最近 ${TIMELINE.updated_at||'-'} · 间隔 ${fmtInterval(TIMELINE.refresh_interval)}`
+      : '🟡 自动刷新状态读取中';
     return `<div class="card">
       <div class="name"><span class="dot ${running?'on':''}"></span>${m.name}${isView?'<span class="badge">面板</span>':isService?'<span class="badge">服务</span>':'<span class="badge">一次性</span>'}</div>
       <div class="desc">${m.desc}</div>
       <div class="actions">${btn}${link}</div>
-      <div class="status ${running?'run':''}">${isView?'📊 离线可用':running?'🟢 运行中 (PID '+m.pid+')':'⚪ 未运行'}</div>
+      <div class="status ${isView?(TIMELINE?'run':'warn'):(running?'run':'')}">${isView?viewStatus:running?'🟢 运行中 (PID '+m.pid+')':'⚪ 未运行'}</div>
     </div>`;
   }).join('');
 }
 
 async function load(){
   try{
-    const d = await fetch('/api/modules').then(r=>r.json());
+    const [d, t] = await Promise.all([
+      fetch('/api/modules').then(r=>r.json()),
+      fetch('/api/timeline').then(r=>r.json()).catch(()=>null)
+    ]);
     MODULES = d.modules||[];
+    TIMELINE = t;
     render();
   }catch(e){ console.error(e); }
 }

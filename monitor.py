@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """B站博主动态监控守护。
 
-每 2 分钟轮询各博主最新动态，发现新动态 → Bark 推送全文；拉取失败 → Bark 告警。
+每 5 分钟轮询各博主最新动态，发现新动态 → Bark 推送全文；拉取失败 → Bark 告警。
 
 用法:
   python3 monitor.py                # 启动监控(前台)
@@ -173,7 +173,7 @@ def check_once(fetcher: DynamicsFetcher, uids: List[str]) -> None:
 def main() -> None:
     import argparse
     ap = argparse.ArgumentParser(description="B站动态监控守护(新动态Bark推送+失败告警)")
-    ap.add_argument("--interval", type=int, default=120, help="轮询间隔秒(默认120)")
+    ap.add_argument("--interval", type=int, default=300, help="轮询间隔秒(默认300)")
     ap.add_argument("--test-bark", action="store_true", help="测试 Bark 推送后退出")
     args = ap.parse_args()
 

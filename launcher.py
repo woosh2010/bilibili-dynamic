@@ -13,9 +13,12 @@ import signal
 import socket
 import subprocess
 import sys
+import time
 import webbrowser
+from datetime import datetime, time as dtime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Thread
 from urllib.parse import parse_qs, urlparse
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -23,13 +26,17 @@ LOG_DIR = PROJECT_DIR / "logs"
 PID_PATH = PROJECT_DIR / "out" / "launcher_pids.json"
 PY = sys.executable
 PORT = 8084
+DEFAULT_TIMELINE_REFRESH_INTERVAL = 300
+MORNING_TIMELINE_REFRESH_INTERVAL = 120
+MORNING_REFRESH_START = dtime(9, 30)
+MORNING_REFRESH_END = dtime(10, 0)
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 (PROJECT_DIR / "out").mkdir(parents=True, exist_ok=True)
 
 # 功能模块定义
 MODULES = [
-    {"id": "monitor", "name": "动态监控守护", "desc": "每2分钟轮询,新动态Bark推送,失败告警",
+    {"id": "monitor", "name": "动态监控守护", "desc": "每5分钟轮询,新动态Bark推送,失败告警",
      "cmd": [PY, "monitor.py"], "type": "service", "pattern": "monitor.py"},
     {"id": "dashboard", "name": "策略看板", "desc": "AI荐股分析+跟踪看板",
      "cmd": [PY, "analyze_stocks.py", "--serve", "--port", "8082"], "type": "service", "port": 8082},
@@ -149,6 +156,8 @@ class H(SimpleHTTPRequestHandler):
                 s = module_status(m)
                 data.append({**m, "running": s["running"], "pid": s["pid"]})
             self._json({"modules": data})
+        elif path == "/api/timeline":
+            self._json(_timeline_status())
         elif path.startswith("/api/log/"):
             mid = path.rsplit("/", 1)[-1]
             self._send_log(mid)
@@ -204,6 +213,86 @@ class H(SimpleHTTPRequestHandler):
         pass  # 静默
 
 
+# ---- 仪表盘数据自动刷新 ----
+_timeline_count: int = 0
+_timeline_updated: str = ""
+
+
+def _read_timeline_count() -> int:
+    """读取 out/timeline.js 中的动态条数。"""
+    p = PROJECT_DIR / "out" / "timeline.js"
+    if not p.exists():
+        return 0
+    try:
+        text = p.read_text(encoding="utf-8")
+        # 统计 '"id_str"' 出现次数
+        return text.count('"id_str"')
+    except Exception:
+        return 0
+
+
+def _timeline_file_updated_at() -> str:
+    p = PROJECT_DIR / "out" / "timeline.js"
+    if not p.exists():
+        return ""
+    return datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _timeline_refresh_interval(now: datetime | None = None) -> int:
+    now = now or datetime.now()
+    if MORNING_REFRESH_START <= now.time() < MORNING_REFRESH_END:
+        return MORNING_TIMELINE_REFRESH_INTERVAL
+    return DEFAULT_TIMELINE_REFRESH_INTERVAL
+
+
+def _next_timeline_sleep(now: datetime | None = None) -> int:
+    now = now or datetime.now()
+    seconds = _timeline_refresh_interval(now)
+    today_start = datetime.combine(now.date(), MORNING_REFRESH_START)
+    today_end = datetime.combine(now.date(), MORNING_REFRESH_END)
+    if now < today_start:
+        seconds = min(seconds, max(1, int((today_start - now).total_seconds())))
+    elif today_start <= now < today_end:
+        seconds = min(seconds, max(1, int((today_end - now).total_seconds())))
+    return max(1, seconds)
+
+
+def _timeline_status() -> dict:
+    global _timeline_count, _timeline_updated
+    count = _read_timeline_count()
+    return {
+        "count": count,
+        "updated_at": _timeline_file_updated_at() or _timeline_updated,
+        "refresh_interval": _timeline_refresh_interval(),
+    }
+
+
+def _refresh_timeline_once() -> None:
+    global _timeline_count, _timeline_updated
+    r = subprocess.run(
+        [PY, "build_data.py"],
+        cwd=str(PROJECT_DIR), capture_output=True, timeout=240
+    )
+    if r.returncode == 0:
+        _timeline_count = _read_timeline_count()
+        _timeline_updated = datetime.now().strftime("%H:%M:%S")
+        interval = _timeline_refresh_interval()
+        print(f"[{_timeline_updated}] 面板数据已刷新 ({_timeline_count} 条，下次约 {interval // 60} 分钟后)", flush=True)
+    else:
+        err = r.stderr.decode("utf-8", errors="replace")[-200:]
+        print(f"[{datetime.now():%H:%M:%S}] 面板刷新失败: {err}", flush=True)
+
+
+def _auto_refresh_timeline():
+    """后台线程：常规 5 分钟刷新，9:30-10:00 提升到 2 分钟。"""
+    while True:
+        try:
+            _refresh_timeline_once()
+        except Exception as e:
+            print(f"[{datetime.now():%H:%M:%S}] 面板刷新异常: {e}", flush=True)
+        time.sleep(_next_timeline_sleep())
+
+
 def main():
     # 如果 8084 已被本项目的另一个 launcher 实例占用，直接打开浏览器退出（不报错）
     if port_in_use(PORT):
@@ -215,9 +304,14 @@ def main():
             except Exception:
                 pass
             return
+    # 启动仪表盘数据自动刷新（常规 5 分钟，9:30-10:00 为 2 分钟）
+    refresh_thread = Thread(target=_auto_refresh_timeline, daemon=True)
+    refresh_thread.start()
+
     server = ThreadingHTTPServer(("0.0.0.0", PORT), H)
     url = f"http://localhost:{PORT}"
     print(f"启动面板 → {url}")
+    print("仪表盘常规每 5 分钟刷新，09:30-10:00 每 2 分钟刷新")
     print("按 Ctrl+C 退出（已启动的监控/看板不受影响）")
     # 自动打开浏览器
     try:
